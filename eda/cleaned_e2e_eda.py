@@ -67,6 +67,8 @@ print("Fixed:")
 print(train.loc[1]['mr'])
 print(train.loc[1]['orig_mr'])
 
+train_mrs=list(train['mr'])
+
 
 def get_tags(mr):
     """
@@ -202,5 +204,7 @@ word_freq.plot(20, cumulative=False)
 
 print("Size of Ref Vocab", len(unique_ref_words))
 print("Size of Ref Vocab (no stopwords)", len(ref_word_counts_non_stop))
+
+
 
 
