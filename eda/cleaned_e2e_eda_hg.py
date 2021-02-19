@@ -35,19 +35,26 @@ from nltk.tokenize import word_tokenize
 from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords
 import nltk
+
+#HuggingFace
+from datasets import list_datasets, load_dataset
 # -
 
 # ### EDA - Clean E2E Dataset
 
 # +
-train = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/train-fixed.no-ol.csv')
-dev = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/devel-fixed.no-ol.csv') 
-test = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/test-fixed.csv') 
+#e2e_nlg
+#e2e_nlg_cleaned
+
+dataset = load_dataset("e2e_nlg_cleaned")
+train = dataset['train']
+dev = dataset['validation']
+test = dataset['test']
 print("Train Size", train.shape)
 print("Dev Size", dev.shape)
 print("Test Size", test.shape)
 
-train.head()
+train
 # -
 
 #Stopwords Set
@@ -56,19 +63,7 @@ sr= set(stopwords.words('english'))
 
 # ### Example of `fixed` vs. `not fixed`
 
-# ### Understand spread of MR Tags
-
-#Not Fixed
-print("Not Fixed:")
-print(train.loc[0]['mr'])
-print(train.loc[0]['orig_mr'])
-print()
-#Fixed
-print("Fixed:")
-print(train.loc[1]['mr'])
-print(train.loc[1]['orig_mr'])
-
-train_mrs=list(train['mr'])
+train_mrs=train['meaning_representation']
 
 
 def get_tags(mr):
@@ -172,7 +167,7 @@ print("Size of MR Vocab (no tags, no stopwords)", len(word_counts_non_stop))
 
 # ### Shifting focus to the `<ref>` outputs analysis
 
-train_refs = train['ref']
+train_refs = train['human_reference']
 train_refs[0]
 
 # +
