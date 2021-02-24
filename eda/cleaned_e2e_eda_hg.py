@@ -17,6 +17,7 @@
 #Utilities
 import pandas as pd
 import numpy as np
+from scipy import stats
 import math 
 import json
 import re
@@ -110,9 +111,24 @@ for token in flat_tags:
 
 freq_tag = nltk.FreqDist(tag_clean_tokens)
 freq_tag.plot(20, cumulative=False)
-
-
 # -
+
+get_tags(train_mrs[0])
+
+train_mrs_lengths = [len(text) for text in train_mrs]
+print(stats.describe(train_mrs_lengths))
+plt.hist(train_mrs_lengths, density=True, bins=30)  # density=False would make counts
+plt.title("Histogram: Train MR Lengths")
+plt.ylabel('Probability')
+plt.xlabel('Text Length');
+
+train_mrs_token_counts = [len(nltk.word_tokenize(text)) for text in train_mrs]
+print(stats.describe(train_mrs_token_counts))
+plt.hist(train_mrs_token_counts, density=True, bins=30)  # density=False would make counts
+plt.title("Histogram: Train MRs Token Counts")
+plt.ylabel('Probability')
+plt.xlabel('Token Count');    
+
 
 # ### Understand spread of all words in MR, ignore `[`, `]`, `<any_punctuation>` and `<stopwords>`
 
@@ -201,6 +217,18 @@ word_freq.plot(20, cumulative=False)
 print("Size of Ref Vocab", len(unique_ref_words))
 print("Size of Ref Vocab (no stopwords)", len(ref_word_counts_non_stop))
 
+train_refs[0]
 
+train_ref_lengths = [len(text) for text in train_refs]
+print(stats.describe(train_ref_lengths))
+plt.hist(train_ref_lengths, density=True, bins=30)  # density=False would make counts
+plt.title("Histogram: Train Ref Lengths")
+plt.ylabel('Probability')
+plt.xlabel('Text Length');
 
-
+train_ref_token_counts = [len(nltk.word_tokenize(text)) for text in train_refs]
+print(stats.describe(train_ref_token_counts))
+plt.hist(train_ref_token_counts, density=True, bins=30)  # density=False would make counts
+plt.title("Histogram: Train Ref Token Counts")
+plt.ylabel('Probability')
+plt.xlabel('Token Count');    
