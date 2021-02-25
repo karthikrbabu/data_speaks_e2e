@@ -35,6 +35,7 @@ from nltk.tokenize import wordpunct_tokenize
 from nltk.tokenize import word_tokenize 
 from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords
+
 import nltk
 
 #HuggingFace
@@ -59,6 +60,9 @@ train
 # -
 
 #Stopwords Set
+#Uncomment and run below line if package doesn't exist
+# nltk.download('stopwords')
+# nltk.download('punkt')
 sr= set(stopwords.words('english'))
 
 
@@ -127,7 +131,7 @@ print(stats.describe(train_mrs_token_counts))
 plt.hist(train_mrs_token_counts, density=True, bins=30)  # density=False would make counts
 plt.title("Histogram: Train MRs Token Counts")
 plt.ylabel('Probability')
-plt.xlabel('Token Count');    
+plt.xlabel('Token Count');
 
 
 # ### Understand spread of all words in MR, ignore `[`, `]`, `<any_punctuation>` and `<stopwords>`
@@ -232,3 +236,5 @@ plt.hist(train_ref_token_counts, density=True, bins=30)  # density=False would m
 plt.title("Histogram: Train Ref Token Counts")
 plt.ylabel('Probability')
 plt.xlabel('Token Count');    
+
+
