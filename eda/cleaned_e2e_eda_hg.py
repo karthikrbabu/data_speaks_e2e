@@ -235,6 +235,6 @@ print(stats.describe(train_ref_token_counts))
 plt.hist(train_ref_token_counts, density=True, bins=30)  # density=False would make counts
 plt.title("Histogram: Train Ref Token Counts")
 plt.ylabel('Probability')
-plt.xlabel('Token Count');    
+plt.xlabel('Token Count');
 
 

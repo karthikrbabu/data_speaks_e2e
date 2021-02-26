@@ -66,14 +66,14 @@ print("Test Size", test.shape)
 train
 
 # +
-train = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/train-fixed.no-ol.csv')
+train = pd.read_csv('../data/data_sandbox/train_senti.csv')
 dev = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/devel-fixed.no-ol.csv') 
 test = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/test-fixed.csv') 
 print("Train Size", train.shape)
 print("Dev Size", dev.shape)
 print("Test Size", test.shape)
 
-train = train.drop(["fixed", "orig_mr"], axis = 1)
+train = train.drop(["Unnamed: 0"], axis = 1)
 dev = dev.drop(["fixed", "orig_mr"], axis = 1)
 test = test.drop(["fixed", "orig_mr"], axis = 1)
 
@@ -113,3 +113,33 @@ train['labels'] = sent_labels
 train['scores'] = sent_scores
 
 train.to_csv('/home/karthikrbabu/data_speaks_e2e/data/data_sandbox/train_senti.csv')
+# +
+result = train.groupby('labels').agg({'scores': ['mean', 'min', 'max','count', 'std','var']}).reset_index()
+print("NEGATIVE %: ", 12912/(12912+20613))
+print("POSITIVE %: ", 20613/(12912+20613))
+
+negative_scores = list(train[train['labels'] == 'NEGATIVE']['scores'])
+positive_scores = list(train[train['labels'] == 'POSITIVE']['scores'])
+
+print()
+print(f'POSITIVE stats: {stats.describe(positive_scores)}')
+print()
+print(f'NEGATIVE stats: {stats.describe(negative_scores)}')
+
+result
+
+
+# +
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 5))
+axes[0].hist(negative_scores, density=True, alpha=0.5, label='NEGATIVE') # density=False would make counts
+axes[1].hist(positive_scores, density=True, alpha=0.5, label='POSITIVE')
+fig.tight_layout()
+
+
+axes[0].legend(loc='upper right')
+axes[1].legend(loc='upper right')
+
+plt.show()
+# -
+
+
