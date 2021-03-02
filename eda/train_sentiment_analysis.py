@@ -52,20 +52,6 @@ from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassifica
 # ### Datasets
 
 # +
-#e2e_nlg
-#e2e_nlg_cleaned
-
-dataset = load_dataset("e2e_nlg_cleaned")
-train = dataset['train']
-dev = dataset['validation']
-test = dataset['test']
-print("Train Size", train.shape)
-print("Dev Size", dev.shape)
-print("Test Size", test.shape)
-
-train
-
-# +
 train = pd.read_csv('../data/data_sandbox/train_senti.csv')
 dev = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/devel-fixed.no-ol.csv') 
 test = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/test-fixed.csv') 
@@ -141,5 +127,18 @@ axes[1].legend(loc='upper right')
 
 plt.show()
 # -
+# ## Conclusions:
+#
+# Our given human references in the training data have this sentiment spread, bias towards positivie summaries.
+# * NEGATIVE %:  0.3851454138702461 (12,912 count)
+# * POSITIVE %:  0.614854586129754 (20,613 count)
+#
+#
+# Mostly very confident in the sentiments, negative class is marginally less confident. 
+# * POSITIVE stats: DescribeResult(nobs=20613, minmax=(0.5003801584243774, 0.999880313873291), mean=0.9650171614020567, variance=0.0069442250681093914, skewness=-3.478629338147737, kurtosis=12.225515875040173)
+#
+#
+# * NEGATIVE stats: DescribeResult(nobs=12912, minmax=(0.5000444650650024, 0.9998053312301636), mean=0.9516976303253623, variance=0.009525433403789625, skewness=-2.770861182607165, kurtosis=7.26381817812592)
+
 
 

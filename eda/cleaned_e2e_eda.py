@@ -17,6 +17,7 @@
 #Utilities
 import pandas as pd
 import numpy as np
+from scipy import stats
 import math 
 import json
 import re
@@ -34,10 +35,14 @@ from nltk.tokenize import wordpunct_tokenize
 from nltk.tokenize import word_tokenize 
 from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords
+
 import nltk
+
+#HuggingFace
+from datasets import list_datasets, load_dataset
 # -
 
-# ### EDA - Clean E2E Dataset
+# ## EDA - Clean E2E Dataset
 
 # +
 train = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/train-fixed.no-ol.csv')
@@ -56,8 +61,6 @@ sr= set(stopwords.words('english'))
 
 # ### Example of `fixed` vs. `not fixed`
 
-# ### Understand spread of MR Tags
-
 #Not Fixed
 print("Not Fixed:")
 print(train.loc[0]['mr'])
@@ -67,6 +70,10 @@ print()
 print("Fixed:")
 print(train.loc[1]['mr'])
 print(train.loc[1]['orig_mr'])
+
+# ## Meaning Representations 
+#
+# ### Understand spread of MR Tags
 
 train_mrs=list(train['mr'])
 
@@ -103,18 +110,24 @@ flat_tags = [item.strip() for sublist in all_tags for item in sublist]
 #Unique Tags
 unique_tags = set(flat_tags)
 
+print("Total # of Tags: ", f'{len(flat_tags):,}')
+
 tag_counts = collections.Counter(flat_tags)
 tag_counts
+# -
+
+# #### Tags Barchart
 
 # +
-# %%time
-tag_clean_tokens = []
-for token in flat_tags:
-    if token not in sr:
-        tag_clean_tokens.append(token)
+df_tag_counts = pd.DataFrame.from_dict(dict(tag_counts), orient='index', dtype=None, columns=['count'])
+df_tag_counts['tag'] = df_tag_counts.index
 
-freq_tag = nltk.FreqDist(tag_clean_tokens)
-freq_tag.plot(20, cumulative=False)
+fig = px.bar(df_tag_counts, x='tag', y='count',
+             hover_data=['tag', 'count'], color='tag',
+             labels={'count':'number of tags in training data'}, height=400)
+
+fig.update_layout(title_text="Training: Tag Count")
+fig.show()
 
 
 # -
@@ -145,31 +158,57 @@ unique_words = set(flat_words)
 
 # Word counts
 word_counts = collections.Counter(flat_words)
-# -
 
-#Non Stop Words
-unique_words_non_stop = unique_words - sr
-
-
-# +
-# %%time
-word_clean_tokens = []
+#Word Counts, no stop words
+words_nonstop = []
 for token in flat_words:
     if token not in sr:
-        word_clean_tokens.append(token)
+        words_nonstop.append(token)
 
 # Non-Stop Word counts
-word_counts_non_stop = collections.Counter(word_clean_tokens)        
+word_counts_non_stop = collections.Counter(words_nonstop)
 
-word_freq = nltk.FreqDist(word_clean_tokens)
-word_freq.plot(20, cumulative=False)
+# +
+df_mr_word_counts = pd.DataFrame.from_dict(dict(word_counts_non_stop), orient='index', dtype=None, columns=['count']) \
+                                .sort_values(by=['count'], ascending=False)
+df_mr_word_counts['word'] = df_mr_word_counts.index
+
+fig = px.bar(df_mr_word_counts, x='word', y='count',
+             hover_data=['word', 'count'], color='word',
+             labels={'count':'word count'}, height=400)
+
+fig.update_layout(title_text="Training: MR Word Count")
+fig.show()
 # -
+
 print("Size of MR Vocab (no tags)", len(unique_words))
 print("Size of MR Vocab (no tags, no stopwords)", len(word_counts_non_stop))
 
 
+# ### Train MR Lengths
+
+# +
+train_mrs_lengths = pd.DataFrame({'lengths': [len(text) for text in train_mrs]})
+print(stats.describe(train_mrs_lengths['lengths']))
+fig = px.histogram(train_mrs_lengths, x="lengths", histnorm='percent') # histnorm: percent, probability, density
+
+fig.update_layout(title_text="Histogram: Train MR Lengths")
+fig.show()
+# -
+
+# ### Train MR Token Counts
+#
+# We want to see an upper bound here, so we are doing no filtering. Stop words and punctuation are left as is
+
+train_mrs_token_counts = pd.DataFrame({'counts': [len(nltk.word_tokenize(text)) for text in train_mrs]})
+print(stats.describe(train_mrs_token_counts['counts']))
+fig = px.histogram(train_mrs_token_counts, x="counts", histnorm='percent') # histnorm: percent, probability, density
+fig.update_layout(title_text="Histogram: Train MR Token Counts")
+fig.show()
+
 # <hr>
 
+# ## Human References
 # ### Shifting focus to the `<ref>` outputs analysis
 
 train_refs = train['ref']
@@ -183,29 +222,72 @@ ref_words = [get_word_tokens(text) for text in train_refs]
 #flatten tags_total
 flat_ref_words = [item for sublist in ref_words for item in sublist]
 
-#Unique words
-unique_ref_words = set(flat_ref_words)
-
 # Word counts
-ref_word_counts = collections.Counter(unique_ref_words)
+ref_word_counts = collections.Counter(flat_ref_words)
 
-# +
-# %%time
-ref_word_clean_tokens = []
+ref_word_nonstop = []
 for token in flat_ref_words:
     if token not in sr:
-        ref_word_clean_tokens.append(token)
+        ref_word_nonstop.append(token)
 
 # Non-Stop Word counts
-ref_word_counts_non_stop = collections.Counter(ref_word_clean_tokens)        
+ref_word_counts_non_stop = collections.Counter(ref_word_nonstop)        
 
-word_freq = nltk.FreqDist(ref_word_clean_tokens)
-word_freq.plot(20, cumulative=False)
+
+# +
+df_ref_word_counts = pd.DataFrame.from_dict(dict(ref_word_counts_non_stop), orient='index', dtype=None, columns=['count']) \
+                                .sort_values(by=['count'], ascending=False)
+df_ref_word_counts['word'] = df_ref_word_counts.index
+print("Shape: ", df_ref_word_counts.shape)
+
+#Top 150 rows captures a lot of the data
+fig = px.bar(df_ref_word_counts[:150], x='word', y='count',
+             hover_data=['word', 'count'], color='word',
+             labels={'count':'word count'}, height=400)
+
+fig.update_layout(title_text="Training: Ref Word Count")
+fig.show()
 # -
 
-print("Size of Ref Vocab", len(unique_ref_words))
+print("Size of Ref Vocab", len(ref_word_counts))
 print("Size of Ref Vocab (no stopwords)", len(ref_word_counts_non_stop))
 
+# ### Train Human Reference Lengths
 
+# +
+train_refs_lengths = pd.DataFrame({'lengths': [len(text) for text in train_refs]})
+print(stats.describe(train_refs_lengths['lengths']))
+fig = px.histogram(train_refs_lengths, x="lengths", histnorm='percent') # histnorm: percent, probability, density
+
+fig.update_layout(title_text="Histogram: Train Ref Lengths")
+fig.show()
+# -
+
+# ### Train Ref Token Counts
+#
+# We want to see an upper bound here, so we are doing no filtering. Stop words and punctuation are left as is
+
+train_refs_token_counts = pd.DataFrame({'counts': [len(nltk.word_tokenize(text)) for text in train_refs]})
+print(stats.describe(train_refs_token_counts['counts']))
+fig = px.histogram(train_refs_token_counts, x="counts", histnorm='percent') # histnorm: percent, probability, density
+fig.update_layout(title_text="Histogram: Train Ref Token Counts")
+fig.show()
+
+# ## Conclusions:
+#
+# ### MRs:
+# * Vocab Size: 106
+# * Vocab Size (no tags, no stopwords) 98
+# * Somewhat even spread of all the unique tags (total 8) 
+# * MR Lengths: minmax=(13, 210), mean=102.7668903803132
+# * MR Token Counts: minmax=(4, 61), mean=29.216405667412378
+# * Lengths and counts have a normal distribution! 
+#
+# ### Refs:
+# * Vocab Size: 2020
+# * Vocab Size (no tags, no stopwords) 1910
+# * Ref Lengths: minmax=(4, 343), mean=111.51633109619686
+# * Ref Token Counts: minmax=(1, 73), mean=22.2082624906786
+# * Lengths and counts have a normal distribution! 
 
 
