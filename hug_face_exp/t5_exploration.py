@@ -52,7 +52,8 @@ import nltk
 
 #HuggingFace
 from transformers import (TFAutoModelWithLMHead, AutoTokenizer, 
-    TFTrainer, TFTrainingArguments, T5Tokenizer, TFT5ForConditionalGeneration, TFT5Model, TFT5EncoderModel,T5Config)
+                            TFTrainer, TFTrainingArguments, T5Tokenizer, TFT5ForConditionalGeneration,
+                            TFT5Model, TFT5EncoderModel, T5Config, pipeline)
 
 # Tensorflow
 import tensorflow as tf
@@ -92,7 +93,8 @@ train.head()
 # +
 #Configs
 config = {
-    'model_size': "t5-small"
+    'model_size': "t5-small",
+    'max_len': 100
 }
 
 model_config = {
@@ -114,12 +116,21 @@ model_config = {
     'eos_token_id': 1
 }
 
+
 token_config = {
+    'add_special_tokens': True,
+    'padding': 'longest',
+    'truncation':True,    
     'max_length':None,
-    'max_target_length':None,
-    'padding':'longest',
+    'stride': 0,
+    'is_split_into_words':False,
     'return_tensors': 'tf',
-    'truncation':True,
+    'return_token_type_ids': False,
+    'return_attention_mask': True,
+    'return_overflowing_tokens': False,
+    'return_special_tokens_mask': False,
+    'return_offsets_mapping': False,
+    'return_length': True,
 }
 # -
 
@@ -127,91 +138,59 @@ token_config = {
 
 # +
 tokenizer = AutoTokenizer.from_pretrained(config['model_size'])
-t5_config = T5Config(**token_config)
-t5_layer = TFT5ForConditionalGeneration.from_pretrained(config['model_size'])
+# t5_config = T5Config(**token_config)
 
 #Vocab Length
 print("Vocab Length: ", len(tokenizer.vocab))
 
 
-# +
-def convert_pd_to_tf_dataset(data):
-    """
-    Function responsible for taking our Dataset and converting it to Tensorflow Dataset Object
-    https://medium.com/when-i-work-data/converting-a-pandas-dataframe-into-a-tensorflow-dataset-752f3783c168
-    """
-    
-    features = ['mr']
-    converted_dataset = (
-        tf.data.Dataset.from_tensor_slices(
-            (
-                tf.cast(data[features].values, tf.float32),
-                tf.cast(data['ref'].values, tf.int32)
-            )
-        )
-    )
-    
-    return converted_dataset
-
-
-def encode(data, tokenizer, token_config):
-    """
-    Pre-process all data thats passed through BatchEncoding
-    * data - 2 columns ['mr','ref']
-    * tokenizer - T5 or Autotokenizer
-    * token_config - Config to define encoding options
-    """
-    df = data.copy()
-    
-    #Add 'summary' task prefix to the input
-    df.mr = 'summarize: ' + df.mr
-
-    #Process data for training 
-    batch_encoding= tokenizer.prepare_seq2seq_batch(src_texts=list(df['mr']), 
-                                                 tgt_texts=list(df['ref']),
-                                                 **token_config)
-    input_ids = batch_encoding['input_ids']
-    input_attention_mask = batch_encoding['attention_mask']
-    label_ids = batch_encoding['labels']
-    
-    return {'input_ids':input_ids, 'attention_mask': input_attention_mask, 'labels':label_ids}
-
-
-#[WIP] - might not be needed
-def encode_tf(data, tokenizer, token_config):
-    encoded = encode(data, tokenizer, token_config)
-    return (encoded, None)
-
-
-#[WIP] - might not be needed
-def create_dataset(source_dataset, tokenizer, token_config, 
-                   cache_path=None, batch_size=4, 
-                   buffer_size= 1000, shuffling=True):
-
-    dataset = encode_tf(source_dataset, tokenizer, token_config)
-    dataset = dataset.batch(batch_size)
-    dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    return dataset
-    
-
-
 # -
+
+class DataWrapper():
+    def __init__(self, df, tokenizer, token_config):
+        self.df = df
+        self.shape = df.shape
+        self.tokenizer = tokenizer
+        self.token_config = token_config
+        self.x = self.encode(df['mr'])
+        self.y = self.encode(df['ref'])
+
+
+    def encode(self, input_list):
+        """
+        Pre-process all data thats passed through BatchEncoding
+        * input_list - list of strings
+        * tokenizer - T5 or Autotokenizer
+        * token_config - Config to define encoding options
+        """
+
+        #Add 'summary' task prefix to the input
+        inputs = ['summarize: ' + s for s in input_list]
+
+        #Process data for training 
+        batch_encoding= self.tokenizer(inputs,**self.token_config)
+
+        input_ids = batch_encoding['input_ids']
+        attention_mask = batch_encoding['attention_mask']
+        lengths = batch_encoding['length']
+    
+        return {'input_ids':input_ids, 'attention_mask': attention_mask, 'lengths':lengths}
+
 
 # ### Process Train
 
 #Pre Process Training Data
-train_preprop = encode(train, tokenizer, token_config)
-train_input_ids, train_attention_mask, train_labels = train_preprop['input_ids'], train_preprop['attention_mask'], train_preprop['labels']
-print("Input Padded Length: ", len(train_input_ids[0]))
-print("Output Padded Length: ", len(train_labels[0]))
+train_ds = DataWrapper(train, tokenizer, token_config)
+print("Input Padded Length: ", train_ds.x['lengths'][0])
+print("Output Padded Length: ", train_ds.y['lengths'][0])
 
-train_mrs_token_counts = pd.DataFrame({'counts': [np.count_nonzero(mask) for mask in train_attention_mask]})
+train_mrs_token_counts = pd.DataFrame({'counts': [np.count_nonzero(mask) for mask in train_ds.x['attention_mask']]})
 print(stats.describe(train_mrs_token_counts['counts']))
 fig = px.histogram(train_mrs_token_counts, x="counts", histnorm='percent') # histnorm: percent, probability, density
 fig.update_layout(title_text="Histogram: Train Mrs Token Counts")
 fig.show()
 
-train_labels_token_counts = pd.DataFrame({'counts': [np.count_nonzero(label) for label in train_labels]})
+train_labels_token_counts = pd.DataFrame({'counts': [np.count_nonzero(label) for label in train_ds.y['attention_mask']]})
 print(stats.describe(train_labels_token_counts['counts']))
 fig = px.histogram(train_labels_token_counts, x="counts", histnorm='percent') # histnorm: percent, probability, density
 fig.update_layout(title_text="Histogram: Train Labels Token Counts")
@@ -246,6 +225,21 @@ plt.xlabel("Steps")
 plt.ylabel("Learning rate")
 # -
 
+# ### Train Parameters
+#
+
+warmup_steps = 1e4
+batch_size = 4
+encoder_max_len = 250
+decoder_max_len = 54
+buffer_size = 1000
+ntrain = train.shape[0]
+nvalid = dev.shape[0]
+steps = int(np.ceil(ntrain/batch_size))
+valid_steps = int(np.ceil(nvalid/batch_size))
+print("Total Steps: ", steps)
+print("Total Validation Steps: ", valid_steps)
+
 # ### Setup Logging - TensorBoard
 
 # +
@@ -269,21 +263,6 @@ callbacks = [tensorboard_callback, model_checkpoint_callback]
 metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
 # -
 
-# ### Train Parameters
-#
-
-warmup_steps = 1e4
-batch_size = 4
-encoder_max_len = 250
-decoder_max_len = 54
-buffer_size = 1000
-ntrain = train.shape[0]
-nvalid = dev.shape[0]
-steps = int(np.ceil(ntrain/batch_size))
-valid_steps = int(np.ceil(nvalid/batch_size))
-print("Total Steps: ", steps)
-print("Total Validation Steps: ", valid_steps)
-
 # ### Optimizer
 
 learning_rate = CustomSchedule(warmup_steps)
@@ -292,11 +271,11 @@ optimizer = tf.keras.optimizers.Adam(learning_rate)
 
 # ### Process Dev
 
-#Pre Process Training Data
-dev_preprop = encode(dev, tokenizer, token_config)
-dev_input_ids, dev_attention_mask, dev_labels = dev_preprop['input_ids'], dev_preprop['attention_mask'], dev_preprop['labels']
-print("Input Padded Length: ", len(dev_input_ids[0]))
-print("Output Padded Length: ", len(dev_labels[0]))
+#Pre Process Dev Data
+dev_ds = DataWrapper(dev, tokenizer, token_config)
+print("Input Padded Length: ", dev_ds.x['lengths'][0])
+print("Output Padded Length: ", dev_ds.y['lengths'][0])
+
 
 # ### TensorBoard
 
@@ -304,11 +283,68 @@ print("Output Padded Length: ", len(dev_labels[0]))
 
 # ### Train Model
 
-t5_layer.compile(optimizer=optimizer, metrics=metrics)
+# +
+def t5_keras_model():
+    """
+    Use this function to define our basic model pipeline. 
+    Following the keras pattern so that we can apply our model as a function on the next layer etc.
+    """
+    
+    #Here we have input and label token_ids, as well as their attention_masks
+    encode_in = tf.keras.layers.Input(shape=(config['max_len'],), dtype='int32', name="encode_in_ids")
+    enc_mask_in = tf.keras.layers.Input(shape=(config['max_len'],), dtype='int32', name="enc_mask_in_ids")
+    decode_in = tf.keras.layers.Input(shape=(None,), dtype='int32', name="decode_in_ids")
+    dec_mask_in = tf.keras.layers.Input(shape=(None,), dtype='int32', name="dec_mask_in_ids")
+    
+    #Pull in our model
+    t5_layer = TFT5ForConditionalGeneration.from_pretrained(config['model_size'])
+    
+    #Pass along all the parameters to the model
+    t5_out = t5_layer({'input_ids': encode_in, 
+                       'decoder_input_ids':decode_in, 
+                       'attention_mask':enc_mask_in,
+                       'decoder_attention_mask':dec_mask_in
+                      }, return_dict=True)
+    
+    #Checking output keys 
+    print(t5_out.keys())
+    
+    #Predicted logits
+    pred_logits = t5_out['logits']
+    
+    #Model pipeline
+    model = tf.keras.models.Model(inputs=[encode_in, 
+                                          enc_mask_in, 
+                                          decode_in,
+                                          dec_mask_in
+                                         ], 
+                                  outputs=pred_logits)
+    #Compile model
+    model.compile(
+        optimizer=optimizer, 
+        metrics=metrics,
+    )
 
-epochs_done = 0
-t5_layer.fit(train_ds, epochs=5, steps_per_epoch=steps, callbacks=callbacks, 
-          validation_data=valid_ds, validation_steps=valid_steps, initial_epoch=epochs_done)
+# Option 2 
+#     model.compile(
+#         optimizer=tf.keras.optimizers.Adam(),
+#         metrics=[tf.keras.metrics.Accuracy()]
+#     )
+
+    #Print summary
+    model.summary()
+    return model
+
+
+# +
+tf.keras.backend.clear_session()
+try:
+    del t5_gen_model
+except:
+    pass
+
+t5_gen_model = t5_keras_model(train_ds)
+# -
 
 
 
@@ -352,8 +388,5 @@ inputs = tokenizer("summarize: studies have shown that owning a dog is good for 
 result = model.generate(inputs)
 
 result.numpy()[0]
-
-
-
 
 
