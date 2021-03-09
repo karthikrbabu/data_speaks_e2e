@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -21,7 +22,9 @@ from scipy import stats
 import math 
 import json
 import re
-
+import os
+import datetime
+import time
 import collections
 from collections import defaultdict
 
@@ -30,16 +33,25 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 
 #NLTK 
-from nltk.tokenize import WordPunctTokenizer
-from nltk.tokenize import wordpunct_tokenize
-from nltk.tokenize import word_tokenize 
-from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords
-
 import nltk
 
 #HuggingFace
-from datasets import list_datasets, load_dataset
+from transformers import (TFAutoModelWithLMHead, AutoTokenizer, 
+                            TFTrainer, TFTrainingArguments, T5Tokenizer, TFT5ForConditionalGeneration,
+                            TFT5Model, TFT5EncoderModel, T5Config, pipeline)
+
+# Tensorflow
+import tensorflow as tf
+# tf.enable_eager_execution()
+
+#PyTorch
+import torch
+
+# WandB – Import the wandb library
+import wandb
+
+# %load_ext tensorboard
 # -
 
 # ## EDA - Clean E2E Dataset
@@ -54,6 +66,8 @@ print("Test Size", test.shape)
 
 train.head()
 # -
+
+train['mr'][0]
 
 #Stopwords Set
 sr= set(stopwords.words('english'))
