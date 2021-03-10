@@ -72,11 +72,21 @@ print(tf.__version__)
 
 # ### Setup Directories
 
-data_dir = "./data"
+# !pwd
+
+# +
+# data_dir = "./data"
+# log_dir = f"{data_dir}/experiments/t5/logs"
+# save_path = f"{data_dir}/experiments/t5/models"
+# cache_path_train = f"{data_dir}/cache/t5.train"
+# cache_path_test = f"{data_dir}/cache/t5.test"
+
+data_dir = "/home/karthikrbabu/data_speaks_e2e/tf_data/model_data"
 log_dir = f"{data_dir}/experiments/t5/logs"
 save_path = f"{data_dir}/experiments/t5/models"
 cache_path_train = f"{data_dir}/cache/t5.train"
 cache_path_test = f"{data_dir}/cache/t5.test"
+# -
 
 # ### Load Data 
 
@@ -88,40 +98,79 @@ print("Dev Size", dev.shape)
 print("Test Size", test.shape)
 train.head()
 
+
+class T5Wrapper(TFT5ForConditionalGeneration):
+    def __init__(self, *args, log_dir=None, cache_dir= None, **kwargs):
+        super().__init__(*args, **kwargs)
+#         self.loss_tracker= tf.keras.metrics.CategoricalAccuracy(name='categorical_accuracy', dtype=None)
+        self.loss_tracker= tf.keras.metrics.Mean(name='loss')         
+    
+    @tf.function
+    def train_step(self, data):
+        x, _= data
+        y = x["labels"]
+        y = tf.reshape(y, [-1, 1])
+        with tf.GradientTape() as tape:
+            outputs = self(x, training=True)
+            loss = outputs[0]
+            logits = outputs[1]
+            loss = tf.reduce_mean(loss)
+            
+            grads = tape.gradient(loss, self.trainable_variables)
+            
+        self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
+        lr = self.optimizer._decayed_lr(tf.float32)
+        
+        self.loss_tracker.update_state(loss)        
+        self.compiled_metrics.update_state(y, logits)
+        metrics = {m.name: m.result() for m in self.metrics}
+        metrics.update({'lr': lr})
+        
+        return metrics
+
+    def test_step(self, data):
+        x, _ = data
+        y = x["labels"]
+        y = tf.reshape(y, [-1, 1])
+        output = self(x, training=False)
+        loss = output[0]
+        loss = tf.reduce_mean(loss)
+        logits = output[1]
+        
+        self.loss_tracker.update_state(loss)
+        self.compiled_metrics.update_state(y, logits)
+        return {m.name: m.result() for m in self.metrics}
+        
+
 # ### Configs
 
 # +
 #Configs
-config = {
-    'model_size': "t5-small",
-    'max_len': 100
-}
-
-model_config = {
-    'vocab_size':32100,
-    'd_model':512,
-    'd_kv':64,
-    'd_ff':2048,
-    'num_layers': 6,
-    'num_decoder_layers':None,
-    'num_heads':8,
-    'relative_attention_num_buckets':32,
-    'dropout_rate':0.1,
-    'layer_norm_epsilon':1e-06,
-    'initializer_factor':1.0,
-    'feed_forward_proj':'relu',
-    'is_encoder_decoder':True,
-    'use_cache':True,
-    'pad_token_id': 0,
-    'eos_token_id': 1
-}
+# model_config = {
+#     'vocab_size':32100,
+#     'd_model':512,
+#     'd_kv':64,
+#     'd_ff':2048,
+#     'num_layers': 6,
+#     'num_decoder_layers':None,
+#     'num_heads':8,
+#     'relative_attention_num_buckets':32,
+#     'dropout_rate':0.1,
+#     'layer_norm_epsilon':1e-06,
+#     'initializer_factor':1.0,
+#     'feed_forward_proj':'relu',
+#     'is_encoder_decoder':True,
+#     'use_cache':True,
+#     'pad_token_id': 0,
+#     'eos_token_id': 1
+# }
 
 
 token_config = {
     'add_special_tokens': True,
     'padding': 'longest',
     'truncation':True,    
-    'max_length':None,
+    'max_length':60, #60 chosen after understanding the data flow with the tokenizer
     'stride': 0,
     'is_split_into_words':False,
     'return_tensors': 'tf',
@@ -132,6 +181,12 @@ token_config = {
     'return_offsets_mapping': False,
     'return_length': True,
 }
+
+config = {
+    'model_size': "t5-small",
+    'max_len': token_config['max_length']
+}
+
 # -
 
 # ### Initializations
@@ -153,10 +208,10 @@ class DataWrapper():
         self.tokenizer = tokenizer
         self.token_config = token_config
         self.x = self.encode(df['mr'])
-        self.y = self.encode(df['ref'])
+        self.y = self.encode(df['ref'], True)
 
 
-    def encode(self, input_list):
+    def encode(self, input_list, isLabel=False):
         """
         Pre-process all data thats passed through BatchEncoding
         * input_list - list of strings
@@ -164,8 +219,13 @@ class DataWrapper():
         * token_config - Config to define encoding options
         """
 
-        #Add 'summary' task prefix to the input
-        inputs = ['summarize: ' + s for s in input_list]
+        #FOR DECODER NO SUMMARIZE 
+        
+        #Add 'data to text' as prefix to the input `x`
+        if not isLabel:
+            inputs = ['data to text: ' + s for s in input_list]
+        else:
+            inputs = list(input_list)
 
         #Process data for training 
         batch_encoding= self.tokenizer(inputs,**self.token_config)
@@ -184,11 +244,30 @@ train_ds = DataWrapper(train, tokenizer, token_config)
 print("Input Padded Length: ", train_ds.x['lengths'][0])
 print("Output Padded Length: ", train_ds.y['lengths'][0])
 
+# ### Process Dev
+
+#Pre Process Dev Data
+dev_ds = DataWrapper(dev, tokenizer, token_config)
+print("Input Padded Length: ", dev_ds.x['lengths'][0])
+print("Output Padded Length: ", dev_ds.y['lengths'][0])
+
+tokenizer.decode(train_ds.x['input_ids'][0])
+
+tokenizer.decode(train_ds.y['input_ids'][0])
+
 train_mrs_token_counts = pd.DataFrame({'counts': [np.count_nonzero(mask) for mask in train_ds.x['attention_mask']]})
 print(stats.describe(train_mrs_token_counts['counts']))
 fig = px.histogram(train_mrs_token_counts, x="counts", histnorm='percent') # histnorm: percent, probability, density
 fig.update_layout(title_text="Histogram: Train Mrs Token Counts")
 fig.show()
+
+train_mrs_token_counts = pd.DataFrame({'counts': [np.count_nonzero(mask) for mask in train_ds.x['attention_mask']]})
+print(stats.describe(train_mrs_token_counts['counts']))
+fig = px.histogram(train_mrs_token_counts, x="counts", histnorm='percent', cumulative=True) # histnorm: percent, probability, density
+fig.update_layout(title_text="Cumulative Histogram: Train Mrs Token Counts")
+fig.show()
+
+# #### 99% is captured by 60 tokens
 
 train_labels_token_counts = pd.DataFrame({'counts': [np.count_nonzero(label) for label in train_ds.y['attention_mask']]})
 print(stats.describe(train_labels_token_counts['counts']))
@@ -196,6 +275,14 @@ fig = px.histogram(train_labels_token_counts, x="counts", histnorm='percent') # 
 fig.update_layout(title_text="Histogram: Train Labels Token Counts")
 fig.show()
 
+train_labels_token_counts = pd.DataFrame({'counts': [np.count_nonzero(label) for label in train_ds.y['attention_mask']]})
+print(stats.describe(train_labels_token_counts['counts']))
+fig = px.histogram(train_labels_token_counts, x="counts", histnorm='percent', cumulative=True) # histnorm: percent, probability, density
+fig.update_layout(title_text="Histogram: Train Labels Token Counts")
+fig.show()
+
+
+# #### 99% is captured by 50 tokens
 
 # ### Custom Learning Rate Optimizer
 
@@ -228,17 +315,16 @@ plt.ylabel("Learning rate")
 # ### Train Parameters
 #
 
-warmup_steps = 1e4
-batch_size = 4
-encoder_max_len = 250
-decoder_max_len = 54
-buffer_size = 1000
-ntrain = train.shape[0]
-nvalid = dev.shape[0]
-steps = int(np.ceil(ntrain/batch_size))
-valid_steps = int(np.ceil(nvalid/batch_size))
-print("Total Steps: ", steps)
-print("Total Validation Steps: ", valid_steps)
+EPOCHS = 6
+BATCH_SIZE = 25
+WARMUP_STEPS = 1e4
+BUFFER_SIZE = 1000
+NTRAIN = train_ds.x['input_ids'].shape[0]
+NDEV = dev_ds.x['input_ids'].shape[0]
+STEPS = int(np.ceil(NTRAIN/BATCH_SIZE))
+DEV_STEPS = int(np.ceil(NDEV/BATCH_SIZE))
+print("Total Steps: ", STEPS)
+print("Total Dev Steps: ", DEV_STEPS)
 
 # ### Setup Logging - TensorBoard
 
@@ -260,7 +346,7 @@ model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     save_best_only=True)
 
 callbacks = [tensorboard_callback, model_checkpoint_callback] 
-metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
+metrics = ['sparse_categorical_accuracy','categorical_accuracy', 'categorical_crossentropy']
 # -
 
 # ### Optimizer
@@ -269,24 +355,17 @@ learning_rate = CustomSchedule(warmup_steps)
 # learning_rate = 0.001  # Instead set a static learning rate
 optimizer = tf.keras.optimizers.Adam(learning_rate)
 
-# ### Process Dev
-
-#Pre Process Dev Data
-dev_ds = DataWrapper(dev, tokenizer, token_config)
-print("Input Padded Length: ", dev_ds.x['lengths'][0])
-print("Output Padded Length: ", dev_ds.y['lengths'][0])
-
 
 # ### TensorBoard
 
-# %tensorboard --logdir ./data/experiments/t5/logs
+# %tensorboard --logdir /home/karthikrbabu/data_speaks_e2e/tf_data/model_data/experiments/t5/logs
 
-# ### Train Model
+# ### Setup Model
 
 # +
 def t5_keras_model():
     """
-    Use this function to define our basic model pipeline. 
+    Use this function to define our basic model pipeline.
     Following the keras pattern so that we can apply our model as a function on the next layer etc.
     """
     
@@ -301,7 +380,7 @@ def t5_keras_model():
     
     #Pass along all the parameters to the model
     t5_out = t5_layer({'input_ids': encode_in, 
-                       'decoder_input_ids':decode_in, 
+                       'decoder_input_ids':decode_in,
                        'attention_mask':enc_mask_in,
                        'decoder_attention_mask':dec_mask_in
                       }, return_dict=True)
@@ -320,8 +399,8 @@ def t5_keras_model():
                                          ], 
                                   outputs=pred_logits)
     #Compile model
-    model.compile(
-        optimizer=optimizer, 
+    model.compile(loss='categorical_crossentropy',
+        optimizer='adam', 
         metrics=metrics,
     )
 
@@ -336,6 +415,10 @@ def t5_keras_model():
     return model
 
 
+# -
+
+# ### Compile Model
+
 # +
 tf.keras.backend.clear_session()
 try:
@@ -343,50 +426,66 @@ try:
 except:
     pass
 
-t5_gen_model = t5_keras_model(train_ds)
+t5_gen_model = t5_keras_model()
+# -
+# ### Train Model
+
+# +
+EPOCHS_DONE = 0
+t5_gen_model.fit(
+    [
+        train_ds.x['input_ids'], 
+        train_ds.x['attention_mask'], 
+        train_ds.y['input_ids'],
+        train_ds.y['attention_mask']
+    ],
+     validation_data=(
+         [
+            dev_ds.x['input_ids'], 
+            dev_ds.x['attention_mask'], 
+            dev_ds.y['input_ids'],
+            dev_ds.y['attention_mask']
+    ]),
+
+    batch_size=BATCH_SIZE,
+    epochs=EPOCHS,
+    steps_per_epoch=STEPS,
+    callbacks=callbacks, 
+    validation_steps=DEV_STEPS,
+    initial_epoch=EPOCHS_DONE
+
+)
+
 # -
 
+t5_gen_model.save_pretrained(save_path)
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ## Example #1
-
-tokenizer = T5Tokenizer.from_pretrained('t5-small')
-model = TFT5Model.from_pretrained('t5-small')
-input_ids = tokenizer("Studies have been shown that owning a dog is good for you", return_tensors="tf").input_ids  # Batch size 1
-decoder_input_ids = tokenizer("Studies show that", return_tensors="tf").input_ids  # Batch size 1
-outputs = model(input_ids, decoder_input_ids=decoder_input_ids)
-
-
-outputs
-
-# ## Example #2
-
-tokenizer = T5Tokenizer.from_pretrained('t5-small')
 model = TFT5ForConditionalGeneration.from_pretrained('t5-small')
-inputs = tokenizer('The <extra_id_0> walks in <extra_id_1> park', return_tensors='tf').input_ids
-labels = tokenizer('<extra_id_0> cute dog <extra_id_1> the <extra_id_2> </s>', return_tensors='tf').input_ids
-outputs = model(inputs, labels=labels)
-loss = outputs.loss
-logits = outputs.logits
-inputs = tokenizer("summarize: studies have shown that owning a dog is good for you ", return_tensors="tf").input_ids  # Batch size 1
-result = model.generate(inputs)
+# inputs = train_ds.x['input_ids'][0]
+# labels = train_ds.y['input_ids'][0]
+# outputs = model(inputs, labels=labels)
+# loss = outputs.loss
+# logits = outputs.logits
+# inputs = tokenizer("summarize: studies have shown that owning a dog is good for you ", return_tensors="tf").input_ids  # Batch size 1
+# result = model.generate(inputs)
 
-result.numpy()[0]
+# +
+text = f"""{train['mr'][0]}""".replace('\n', ' ')
+
+encoding = tokenizer.encode("""data to text: """ + text, return_tensors='tf')
+outputs = model.generate(encoding,
+                      num_beams=4, temperature=6,
+                                    no_repeat_ngram_size=2,
+                                    min_length=30,
+                                    max_length=100,
+                                    early_stopping=True)
+
+summarization = tokenizer.decode(outputs[0])
+summarization
+# -
 
 
