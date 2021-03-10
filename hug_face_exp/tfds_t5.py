@@ -79,23 +79,24 @@ save_path = f"{data_dir}/experiments/t5/models"
 cache_path_train = f"{data_dir}/cache/t5.train"
 cache_path_test = f"{data_dir}/cache/t5.test"
 
+train_df = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/train-fixed.no-ol.csv').drop(["fixed","orig_mr"], axis=1)
+dev_df = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/devel-fixed.no-ol.csv').drop(["fixed","orig_mr"], axis=1) 
+test_df = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/test-fixed.csv').drop(["fixed","orig_mr"], axis=1)
+print("Train Size", train_df.shape)
+print("Dev Size", dev_df.shape)
+print("Test Size", test_df.shape)
+train_df.head()
+
+print(train_df['mr'][0])
+print()
+print(train_df['ref'][0])
+
 # ### Load Data 
-
-# +
-# train = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/train-fixed.no-ol.csv').drop(["fixed","orig_mr"], axis=1)
-# dev = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/devel-fixed.no-ol.csv').drop(["fixed","orig_mr"], axis=1) 
-# test = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/test-fixed.csv').drop(["fixed","orig_mr"], axis=1)
-# print("Train Size", train.shape)
-# print("Dev Size", dev.shape)
-# print("Test Size", test.shape)
-# train.head()
-
 
 train, info = tfds.load('e2e_cleaned', split='train', with_info=True)
 validation = tfds.load('e2e_cleaned', split='validation', with_info=False)
 print(info)
 
-# -
 
 # ### Configurable Params
 
