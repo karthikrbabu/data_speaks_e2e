@@ -86,7 +86,7 @@ assert int(tf_version_split[0])==2 and int(tf_version_split[-2])>=3, f"Tensorflo
 
 # ### Setup Directories
 
-data_dir = "/home/karthikrbabu/data_speaks_e2e/tf_data/model_data"
+data_dir = "/home/ubuntu/praveen/data_speaks_e2e/tf_data"
 log_dir = f"{data_dir}/experiments/t5/logs"
 save_path = f"{data_dir}/experiments/t5/models"
 cache_path_train = f"{data_dir}/cache/t5.train"
@@ -135,7 +135,7 @@ class SnapthatT5(TFT5ForConditionalGeneration):
         self.loss_tracker.update_state(loss)
         self.compiled_metrics.update_state(y, logits)
         return {m.name: m.result() for m in self.metrics}
-        
+
 
 
 # ### Init Tokenizer
@@ -158,15 +158,15 @@ print("Example data from the dataset: \n", data)
 
 # +
 warmup_steps = 1e4
-epochs = 25
+epochs = 5
 batch_size = 30
 encoder_max_len = 60
 decoder_max_len = 60
 buffer_size = 1000
 ntrain = len(train)
 nvalid = len(validation)
-steps = int(np.ceil(ntrain/batch_size))
-valid_steps = int(np.ceil(nvalid/batch_size))
+steps = int(ntrain//batch_size)
+valid_steps = int(nvalid//batch_size)
 
 print("Train Data Length: ", ntrain)
 print("Validation Data Length: ", nvalid)
@@ -229,7 +229,7 @@ def to_tf_dataset(dataset):
                   'labels': tf.TensorShape([None]), 'decoder_attention_mask':tf.TensorShape([None])}
     ds = tf.data.Dataset.from_generator(lambda : dataset, return_types, return_shapes)
     return ds
-  
+
 
 
 # ### Process Train/Validation =>  Tensors
@@ -243,7 +243,7 @@ def create_dataset(dataset, cache_path=None, batch_size=batch_size,
     """
     Builds data object ready for use given our training dataset in the form of tensors
     """
-    
+
     if cache_path is not None:
         dataset = dataset.cache(cache_path)        
     if shuffling:
@@ -251,14 +251,16 @@ def create_dataset(dataset, cache_path=None, batch_size=batch_size,
     dataset = dataset.batch(batch_size)
     dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
     return dataset
-    
+
 
 
 # ### Build Train/ Validation =>  Model Ready Input
 
+
+
 tf_train_ds= create_dataset(tf_train_ds, batch_size=batch_size, 
                          shuffling=True, cache_path = None)
-tf_train_ds = create_dataset(tf_valid_ds, batch_size=batch_size, 
+tf_valid_ds = create_dataset(tf_valid_ds, batch_size=batch_size, 
                          shuffling=False, cache_path = None)
 
 
@@ -329,12 +331,31 @@ model.summary()
 #
 
 # %load_ext tensorboard
-# %tensorboard --logdir /home/karthikrbabu/data_speaks_e2e/tf_data/model_data/experiments/t5/logs
+# %tensorboard --logdir /home/ubuntu/praveen/data_speaks_e2e/tf_data/experiments/t5/logs
 
 epochs_done = 0
 model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps, callbacks=callbacks, 
           validation_data=tf_valid_ds, validation_steps=valid_steps, initial_epoch=epochs_done)
 
-model.save_pretrained('/home/karthikrbabu/data_speaks_e2e/model_runs/')
+import time
+ts=time.strftime("%Y%m%d_%H%M")
+print(ts)
+
+model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{ts}/')
+
+mr = validation['meaning_representation'][200]
+print(mr)
+
+input_text =  f"data_to_text: {mr} </s>"
+print(input_text)
+encoded_query = tokenizer(input_text, 
+                         return_tensors='tf', pad_to_max_length=True, truncation=True, max_length=encoder_max_len)
+input_ids = encoded_query["input_ids"]
+attention_mask = encoded_query["attention_mask"]
+print(input_ids)
+generated_answer = model.generate(input_ids, attention_mask=attention_mask, 
+                                 max_length=decoder_max_len, top_p=0.95, top_k=50, repetition_penalty=2)
+decoded_answer = tokenizer.decode(generated_answer.numpy()[0])
+print("Model REF: ", decoded_answer)
 
 
