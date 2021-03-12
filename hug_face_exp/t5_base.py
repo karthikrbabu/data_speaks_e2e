@@ -61,7 +61,7 @@ import nltk
 
 #HuggingFace
 import transformers
-from transformers import (TFAutoModelWithLMHead, AutoTokenizer, 
+from transformers import (TFAutoModelWithLMHead, AutoTokenizer, PreTrainedModel,
                             TFTrainer, TFTrainingArguments, T5Tokenizer, TFT5ForConditionalGeneration,
                             TFT5Model, T5Config, pipeline)
 
@@ -84,9 +84,13 @@ assert int(tf_version_split[0])==2 and int(tf_version_split[-2])>=3, f"Tensorflo
 
 # -
 
+# !pwd
+
 # ### Setup Directories
 
-data_dir = "/home/ubuntu/praveen/data_speaks_e2e/tf_data"
+#AWS box path we should keep
+# data_dir = "/home/ubuntu/praveen/data_speaks_e2e/tf_data"
+data_dir = "/home/karthikrbabu/data_speaks_e2e/tf_data"
 log_dir = f"{data_dir}/experiments/t5/logs"
 save_path = f"{data_dir}/experiments/t5/models"
 cache_path_train = f"{data_dir}/cache/t5.train"
@@ -95,7 +99,7 @@ cache_path_test = f"{data_dir}/cache/t5.test"
 
 # ### Defining the Model
 
-class SnapthatT5(TFT5ForConditionalGeneration):
+class T5Wrapper(TFT5ForConditionalGeneration):
     def __init__(self, *args, log_dir=None, cache_dir= None, **kwargs):
         super().__init__(*args, **kwargs)
         self.loss_tracker= tf.keras.metrics.Mean(name='loss') 
@@ -165,14 +169,15 @@ decoder_max_len = 60
 buffer_size = 1000
 ntrain = len(train)
 nvalid = len(validation)
-steps = int(ntrain//batch_size)
-valid_steps = int(nvalid//batch_size)
+steps = int((ntrain//epochs)// batch_size)
+valid_steps = int((nvalid//epochs)// batch_size)
 
 print("Train Data Length: ", ntrain)
 print("Validation Data Length: ", nvalid)
 print("Total Steps: ", steps)
 print("Total Validation Steps: ", valid_steps)
 print("Batch Size: ", batch_size)
+print("Total Epochs: ", epochs)
 
 
 # -
@@ -186,8 +191,8 @@ def encode(example, encoder_max_len=encoder_max_len, decoder_max_len=decoder_max
     mr = example['meaning_representation']
     ref = example['human_reference']
   
-    mr_base = f"data_to_text: {str(mr)} </s>"
-    ref_base = f"{str(ref)} </s>"
+    mr_base = f"data_to_text: {str(mr)}"
+    ref_base = f"{str(ref)}"
 
     encoder_inputs = tokenizer(mr_base, truncation=True, 
                                return_tensors='tf', max_length=encoder_max_len,
@@ -321,7 +326,7 @@ optimizer = tf.keras.optimizers.Adam(learning_rate)
 
 # ### Init Model
 
-model = SnapthatT5.from_pretrained('t5-small')
+model = T5Wrapper.from_pretrained('t5-small')
 
 
 model.compile(optimizer=optimizer, metrics=metrics)
@@ -334,28 +339,125 @@ model.summary()
 # %tensorboard --logdir /home/ubuntu/praveen/data_speaks_e2e/tf_data/experiments/t5/logs
 
 epochs_done = 0
-model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps, callbacks=callbacks, 
+model.fit(tf_train_ds, epochs=1, steps_per_epoch=steps, callbacks=callbacks, 
           validation_data=tf_valid_ds, validation_steps=valid_steps, initial_epoch=epochs_done)
 
 import time
 ts=time.strftime("%Y%m%d_%H%M")
 print(ts)
 
-model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{ts}/')
+# ### Save Model
+
+# Keep for AWS path
+# model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{ts}/')
+model.save_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
+
+
+
+# ### Load Model
+
+loaded_model = T5Wrapper.from_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
 
 mr = validation['meaning_representation'][200]
 print(mr)
 
-input_text =  f"data_to_text: {mr} </s>"
+input_text =  f"data_to_text: {mr}"
 print(input_text)
 encoded_query = tokenizer(input_text, 
                          return_tensors='tf', pad_to_max_length=True, truncation=True, max_length=encoder_max_len)
 input_ids = encoded_query["input_ids"]
 attention_mask = encoded_query["attention_mask"]
 print(input_ids)
-generated_answer = model.generate(input_ids, attention_mask=attention_mask, 
+generated_answer = loaded_model.generate(input_ids, attention_mask=attention_mask, 
                                  max_length=decoder_max_len, top_p=0.95, top_k=50, repetition_penalty=2)
 decoded_answer = tokenizer.decode(generated_answer.numpy()[0])
 print("Model REF: ", decoded_answer)
+
+
+# ### Working on batch generation
+
+# +
+def get_model_output(model, tok, tf_train_ds=None, tf_valid_ds=None, tf_test_ds=None):
+    """
+    Once model is trained and saved. Use this function to evaluate the output on train, validation, and test 
+    
+    model => TFPretrainedModel - T5Wrapper base class
+    tok => AutoTokenizer - Tokenizer used for the respective model
+    tf_train_ds => PreFetchDataset - of Batched Tensors (train)
+    tf_valid_ds => PreFetchDataset - of Batched Tensors (validation)
+    tf_test_ds => PreFetchDataset - of Batched Tensors (test)
+    
+    """
+    
+    def gen_output(ds, ds_name):
+        """
+        ds => PreFetchDataset  - of Batched Tensors
+        ds_name => String - Name of Dataset
+        
+        """
+        
+        print(f"Starting {ds_name}")
+        start = time.time()
+        output = []
+        ds_iter = iter(list(ds))
+        
+        isNext = True
+        while isNext:
+            input_batch = next(ds_iter, None)
+            if input_batch:
+                input_batch.pop('labels', None)
+                input_batch.pop('decoder_attention_mask', None)
+
+                hypotheses_batch = model.generate(
+                    **input_batch,
+                    num_beams=4,
+                    length_penalty=2.0,
+                    max_length=142,
+                    min_length=56,
+                    no_repeat_ngram_size=3,
+                    do_sample=False,
+                    early_stopping=True,
+                )
+                decoded = tok.batch_decode(hypotheses_batch, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+                output += decoded
+            else:
+                isNext = False
+
+        timestamp2 = time.time()
+        print("Took %.2f seconds" % ((timestamp2 - timestamp1)))
+        print("Took {0} minutes".format((timestamp2 - timestamp1)/60))
+        print()
+        return output
+
+    
+    train_output = gen_output(tf_train_ds, "Train") if tf_train_ds else []
+    validation_output = gen_output(tf_valid_ds, "Validation") if tf_valid_ds else []
+    test_output = gen_output(tf_test_ds, "Test") if tf_test_ds else []
+    
+    return {"train_output": train_output, "validation_output":validation_output, "test_output":test_output}
+    
+    
+# -
+
+def write_out_tsv(hf_ds, hf_ds_name, sys_out):
+    """
+    Write out TSV file once we have gotten respective datasets model generated outputs
+    
+    hf_ds => HuggingFaceDataset - features: ['meaning_representation', 'human_reference']
+    gen_out => List - Corresponding model generated outputs for hf_ds
+    hf_ds_name => String - Name of Dataset
+    
+    """
+
+    print(f"Writing {hf_ds_name}_out.csv")
+    source = hf_ds['meaning_representation']
+    reference = hf_ds['human_reference']
+    system_output = sys_out
+    df = pd.DataFrame({"source": source, "reference":reference, "output":system_output})
+    
+    df.to_csv(f'{hf_ds_name}_out.tsv', sep='\t', header=True, index=False)
+    
+
+
 
 

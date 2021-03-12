@@ -67,6 +67,8 @@ print("Test Size", test.shape)
 train.head()
 # -
 
+dev['mr'][:100]
+
 train['mr'][0]
 
 #Stopwords Set
