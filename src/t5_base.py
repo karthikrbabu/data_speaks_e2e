@@ -14,7 +14,7 @@
 #     name: python3
 # ---
 
-# # T5 Model Exploration
+# # T5 Model Base Implementation
 #
 # The purpose of this notebook is to demonstrate training using tensorflow 2 and keras. This notebook includes tf Data pipelines for build any other NLP task in a text to text fashion. Anyone can adapt the data pipeline to thier own datasets. Uses the efficient [Datasets](https://github.com/huggingface/datasets) from 🤗 as source for training.
 #
@@ -61,7 +61,7 @@ import nltk
 
 #HuggingFace
 import transformers
-from transformers import (TFAutoModelWithLMHead, AutoTokenizer, 
+from transformers import (TFAutoModelWithLMHead, AutoTokenizer, PreTrainedModel,
                             TFTrainer, TFTrainingArguments, T5Tokenizer, TFT5ForConditionalGeneration,
                             TFT5Model, T5Config, pipeline)
 
@@ -70,7 +70,6 @@ from datasets import load_dataset, list_datasets
 
 # Tensorflow
 import tensorflow as tf
-import tensorflow_datasets as tfds
 
 #AWS
 import boto3
@@ -88,9 +87,13 @@ assert int(tf_version_split[0])==2 and int(tf_version_split[-2])>=3, f"Tensorflo
 
 # -
 
+# !pwd
+
 # ### Setup Directories
 
-data_dir = "/home/ubuntu/praveen/data_speaks_e2e/tf_data"
+#AWS box path we should keep
+# data_dir = "/home/ubuntu/praveen/data_speaks_e2e/tf_data"
+data_dir = "/home/karthikrbabu/data_speaks_e2e/tf_data"
 log_dir = f"{data_dir}/experiments/t5/logs"
 save_path = f"{data_dir}/experiments/t5/models"
 cache_path_train = f"{data_dir}/cache/t5.train"
@@ -99,7 +102,7 @@ cache_path_test = f"{data_dir}/cache/t5.test"
 
 # ### Defining the Model
 
-class SnapthatT5(TFT5ForConditionalGeneration):
+class T5Wrapper(TFT5ForConditionalGeneration):
     def __init__(self, *args, log_dir=None, cache_dir= None, **kwargs):
         super().__init__(*args, **kwargs)
         self.loss_tracker= tf.keras.metrics.Mean(name='loss') 
@@ -169,14 +172,15 @@ decoder_max_len = 60
 buffer_size = 1000
 ntrain = len(train)
 nvalid = len(validation)
-steps = int(ntrain//batch_size)
-valid_steps = int(nvalid//batch_size)
+steps = int((ntrain//epochs)// batch_size)
+valid_steps = int((nvalid//epochs)// batch_size)
 
 print("Train Data Length: ", ntrain)
 print("Validation Data Length: ", nvalid)
 print("Total Steps: ", steps)
 print("Total Validation Steps: ", valid_steps)
 print("Batch Size: ", batch_size)
+print("Total Epochs: ", epochs)
 
 
 # -
@@ -190,8 +194,8 @@ def encode(example, encoder_max_len=encoder_max_len, decoder_max_len=decoder_max
     mr = example['meaning_representation']
     ref = example['human_reference']
   
-    mr_base = f"data_to_text: {str(mr)} </s>"
-    ref_base = f"{str(ref)} </s>"
+    mr_base = f"data_to_text: {str(mr)}"
+    ref_base = f"{str(ref)}"
 
     encoder_inputs = tokenizer(mr_base, truncation=True, 
                                return_tensors='tf', max_length=encoder_max_len,
@@ -325,7 +329,7 @@ optimizer = tf.keras.optimizers.Adam(learning_rate)
 
 # ### Init Model
 
-model = SnapthatT5.from_pretrained('t5-small')
+model = T5Wrapper.from_pretrained('t5-small')
 
 
 model.compile(optimizer=optimizer, metrics=metrics)
@@ -338,13 +342,24 @@ model.summary()
 # %tensorboard --logdir /home/ubuntu/praveen/data_speaks_e2e/tf_data/experiments/t5/logs
 
 epochs_done = 0
-model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps, callbacks=callbacks, 
+model.fit(tf_train_ds, epochs=1, steps_per_epoch=steps, callbacks=callbacks, 
           validation_data=tf_valid_ds, validation_steps=valid_steps, initial_epoch=epochs_done)
 
 import time
 ts=time.strftime("%Y%m%d_%H%M")
 print(ts)
 
+# ### Save Model
+
+# Keep for AWS path
+# model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{ts}/')
+model.save_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
+
+
+
+# ### Load Model
+
+loaded_model = T5Wrapper.from_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
 
 def save_model_to_s3(model, localfolder):
     model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{localfolder}/model/')
@@ -354,17 +369,18 @@ def save_model_to_s3(model, localfolder):
 
 save_model_to_s3(model, ts)
 
+loaded_model = T5Wrapper.from_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
 mr = validation['meaning_representation'][200]
 print(mr)
 
-input_text =  f"data_to_text: {mr} </s>"
+input_text =  f"data_to_text: {mr}"
 print(input_text)
 encoded_query = tokenizer(input_text, 
                          return_tensors='tf', pad_to_max_length=True, truncation=True, max_length=encoder_max_len)
 input_ids = encoded_query["input_ids"]
 attention_mask = encoded_query["attention_mask"]
 print(input_ids)
-generated_answer = model.generate(input_ids, attention_mask=attention_mask, 
+generated_answer = loaded_model.generate(input_ids, attention_mask=attention_mask, 
                                  max_length=decoder_max_len, top_p=0.95, top_k=50, repetition_penalty=2)
 decoded_answer = tokenizer.decode(generated_answer.numpy()[0])
 print("Model REF: ", decoded_answer)
