@@ -71,6 +71,10 @@ from datasets import load_dataset, list_datasets
 # Tensorflow
 import tensorflow as tf
 
+#AWS
+import boto3
+s3 = boto3.resource('s3')
+
 
 # +
 tf_version = tf.__version__
@@ -357,6 +361,15 @@ model.save_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
 
 loaded_model = T5Wrapper.from_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
 
+def save_model_to_s3(model, localfolder):
+    model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{localfolder}/model/')
+    s3.Bucket('w266-karthik-praveen').upload_file(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{localfolder}/model/config.json',f'{localfolder}/model/config.json')
+    s3.Bucket('w266-karthik-praveen').upload_file(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{localfolder}/model/tf_model.h5',f'{localfolder}/model/tf_model.h5')
+
+
+save_model_to_s3(model, ts)
+
+loaded_model = T5Wrapper.from_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
 mr = validation['meaning_representation'][200]
 print(mr)
 
