@@ -2,6 +2,8 @@
 
 import tensorflow as tf
 import time
+import os.path
+import os
 
 
 def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None, tf_test_ds=None):
@@ -79,9 +81,9 @@ def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None,
 
 
 
-def write_out_tsv(hf_ds, hf_ds_name, model_out, write_path='./'):
+def write_out(hf_ds, hf_ds_name, model_out, write_path='.'):
     """
-    Write out TSV file once we have gotten respective datasets model generated outputs
+    Write out two files one with the provided references, one with the model output references
     
     hf_ds => HuggingFaceDataset - features: ['meaning_representation', 'human_reference']
     gen_out => List - Corresponding model generated outputs for hf_ds
@@ -89,15 +91,29 @@ def write_out_tsv(hf_ds, hf_ds_name, model_out, write_path='./'):
     
     """
 
-    print(f"Writing {hf_ds_name}_out.csv >> {write_path}")
-    source = hf_ds['meaning_representation']
+    ref_file_path = f'{write_path}/{hf_ds_name}_ref.txt'
+    ref_model_file_path = f'{write_path}/{hf_ds_name}_ref_model.txt'
+    
+    if os.path.exists(ref_file_path):
+        os.remove(ref_file_path)
+
+    if os.path.exists(ref_model_file_path):
+        os.remove(ref_model_file_path)
+
+    print(f"Writing {hf_ds_name} files >> {write_path}")
     reference = hf_ds['human_reference']
     system_output = model_out
-    df = pd.DataFrame({"source": source, "reference":reference, "output":system_output})
     
-    df.to_csv(f'{write_path}/{hf_ds_name}_out.tsv', sep='\t', header=True, index=False)
+    with open(ref_file_path, 'a') as ref_ds:
+        for ref in list(reference):
+            ref_ds.write(f'{ref}\n')
 
+    with open(ref_model_file_path, 'a') as ref_model:
+        for ref in system_output:
+            ref_model.write(f'{ref}\n')
 
+    print("Wrote: ", ref_file_path)
+    print("Wrote: ", ref_model_file_path)
 
 
 def encode(example, tokenizer, encoder_max_len=60, decoder_max_len=60):
