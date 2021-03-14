@@ -219,7 +219,7 @@ def load_data(ref_file, sys_file, src_file=None):
         data_ref = read_lines(ref_file, multi_ref=True)
         if len(data_ref) == 1:  # this was apparently a single-ref file -> fix the structure
             data_ref = [[inst] for inst in data_ref[0]]
-
+    
     # sanity check
     assert(len(data_ref) == len(data_sys) == len(data_src))
     return data_src, data_ref, data_sys
