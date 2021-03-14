@@ -176,6 +176,24 @@ def create_dataset(dataset, cache_path=None, batch_size=30,
 
 
 
+def save_model_to_s3(model, localfolder):
+    """
+    Saves the trained model to a local directory and then upload it to s3
+    In s3, it first clears the exisiting 'latest' model and
+        uploads the new model to latest and also by its timestamp
+    """
+
+    model.save_pretrained(f'{base_dir}/model_runs/{localfolder}/model/')
+    s3_bucket=s3.Bucket('w266-karthik-praveen')
+    for obj in s3_bucket.objects.filter(Prefix='latest/'):
+        s3.Object(s3_bucket.name,obj.key).delete()
+    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/config.json',f'{localfolder}/model/config.json')
+    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/tf_model.h5',f'{localfolder}/model/tf_model.h5')
+    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/config.json',f'latest/model/config.json')
+    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/tf_model.h5',f'latest/model/tf_model.h5')
+
+
+
 def print_kwargs(**kwargs):
     # Iterating over the Python kwargs dictionary
     for k, v in kwargs.items():

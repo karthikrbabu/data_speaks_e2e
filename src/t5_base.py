@@ -61,7 +61,7 @@ import nltk
 
 #HuggingFace
 import transformers
-from transformers import (TFAutoModelWithLMHead, AutoTokenizer, PreTrainedModel,
+from transformers import (TFAutoModelWithLMHead, AutoTokenizer,
                             TFTrainer, TFTrainingArguments, T5Tokenizer, TFT5ForConditionalGeneration,
                             TFT5Model, T5Config, pipeline)
 
@@ -87,13 +87,12 @@ assert int(tf_version_split[0])==2 and int(tf_version_split[-2])>=3, f"Tensorflo
 
 # -
 
-# !pwd
-
 # ### Setup Directories
 
 #AWS box path we should keep
 # data_dir = "/home/ubuntu/praveen/data_speaks_e2e/tf_data"
-data_dir = "/home/karthikrbabu/data_speaks_e2e/tf_data"
+base_dir = os.path.abspath(os.path.join(os.getcwd(),os.pardir))
+data_dir = f"{base_dir}/tf_data"
 log_dir = f"{data_dir}/experiments/t5/logs"
 save_path = f"{data_dir}/experiments/t5/models"
 cache_path_train = f"{data_dir}/cache/t5.train"
@@ -339,7 +338,7 @@ model.summary()
 #
 
 # %load_ext tensorboard
-# %tensorboard --logdir /home/ubuntu/praveen/data_speaks_e2e/tf_data/experiments/t5/logs
+# %tensorboard --logdir f"{base_dir}/tf_data/experiments/t5/logs"
 
 epochs_done = 0
 model.fit(tf_train_ds, epochs=1, steps_per_epoch=steps, callbacks=callbacks, 
@@ -353,23 +352,28 @@ print(ts)
 
 # Keep for AWS path
 # model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{ts}/')
-model.save_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
+model.save_pretrained(f'{base_dir}/model_runs/{ts}/')
 
 
 
 # ### Load Model
 
-loaded_model = T5Wrapper.from_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
+loaded_model = T5Wrapper.from_pretrained(f'{base_dir}/model_runs/{ts}/')
 
 def save_model_to_s3(model, localfolder):
-    model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{localfolder}/model/')
-    s3.Bucket('w266-karthik-praveen').upload_file(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{localfolder}/model/config.json',f'{localfolder}/model/config.json')
-    s3.Bucket('w266-karthik-praveen').upload_file(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{localfolder}/model/tf_model.h5',f'{localfolder}/model/tf_model.h5')
+    model.save_pretrained(f'{base_dir}/model_runs/{localfolder}/model/')
+    s3_bucket=s3.Bucket('w266-karthik-praveen')
+    for obj in s3_bucket.objects.filter(Prefix='latest/'):
+        s3.Object(s3_bucket.name,obj.key).delete()
+    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/config.json',f'{localfolder}/model/config.json')
+    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/tf_model.h5',f'{localfolder}/model/tf_model.h5')
+    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/config.json',f'latest/model/config.json')
+    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/tf_model.h5',f'latest/model/tf_model.h5')
 
 
 save_model_to_s3(model, ts)
 
-loaded_model = T5Wrapper.from_pretrained(f'/home/karthikrbabu/data_speaks_e2e/model_runs/{ts}/')
+loaded_model = T5Wrapper.from_pretrained(f'{base_dir}/model_runs/{ts}/')
 mr = validation['meaning_representation'][200]
 print(mr)
 
