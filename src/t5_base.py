@@ -71,6 +71,12 @@ from datasets import load_dataset, list_datasets
 # Tensorflow
 import tensorflow as tf
 
+#Custom Utils Lib
+from utils.utils import (get_model_output, write_pre_metrics_data, add_model_record,
+                         encode, to_tf_dataset, create_dataset, compute_metrics)
+from classes.t5Wrapper import T5Wrapper
+from classes.customScheduler import CustomSchedule
+
 #AWS
 import boto3
 s3 = boto3.resource('s3')
@@ -89,6 +95,7 @@ assert int(tf_version_split[0])==2 and int(tf_version_split[-2])>=3, f"Tensorflo
 
 # ### Setup Directories
 
+# +
 #AWS box path we should keep
 # data_dir = "/home/ubuntu/praveen/data_speaks_e2e/tf_data"
 base_dir = os.path.abspath(os.path.join(os.getcwd(),os.pardir))
@@ -98,51 +105,8 @@ save_path = f"{data_dir}/experiments/t5/models"
 cache_path_train = f"{data_dir}/cache/t5.train"
 cache_path_test = f"{data_dir}/cache/t5.test"
 
-
-# ### Defining the Model
-
-class T5Wrapper(TFT5ForConditionalGeneration):
-    def __init__(self, *args, log_dir=None, cache_dir= None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.loss_tracker= tf.keras.metrics.Mean(name='loss') 
-    
-    @tf.function
-    def train_step(self, data):
-        x = data
-        y = x["labels"]
-        y = tf.reshape(y, [-1, 1])
-        with tf.GradientTape() as tape:
-            outputs = self(x, training=True)
-            loss = outputs[0]
-            logits = outputs[1]
-            loss = tf.reduce_mean(loss)
-            
-            grads = tape.gradient(loss, self.trainable_variables)
-            
-        self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
-        lr = self.optimizer._decayed_lr(tf.float32)
-        
-        self.loss_tracker.update_state(loss)        
-        self.compiled_metrics.update_state(y, logits)
-        metrics = {m.name: m.result() for m in self.metrics}
-        metrics.update({'lr': lr})
-        
-        return metrics
-
-    def test_step(self, data):
-        x = data
-        y = x["labels"]
-        y = tf.reshape(y, [-1, 1])
-        output = self(x, training=False)
-        loss = output[0]
-        loss = tf.reduce_mean(loss)
-        logits = output[1]
-        
-        self.loss_tracker.update_state(loss)
-        self.compiled_metrics.update_state(y, logits)
-        return {m.name: m.result() for m in self.metrics}
-
-
+print(base_dir)
+# -
 
 # ### Init Tokenizer
 
@@ -180,116 +144,31 @@ print("Total Steps: ", steps)
 print("Total Validation Steps: ", valid_steps)
 print("Batch Size: ", batch_size)
 print("Total Epochs: ", epochs)
-
-
 # -
 
-# ### Data Pipeline
-
-def encode(example, encoder_max_len=encoder_max_len, decoder_max_len=decoder_max_len):
-    """
-    Encode function that uses the T5 Tokenizer on each example
-    """
-    mr = example['meaning_representation']
-    ref = example['human_reference']
-  
-    mr_base = f"data_to_text: {str(mr)}"
-    ref_base = f"{str(ref)}"
-
-    encoder_inputs = tokenizer(mr_base, truncation=True, 
-                               return_tensors='tf', max_length=encoder_max_len,
-                              pad_to_max_length=True)
-
-    decoder_inputs = tokenizer(ref_base, truncation=True, 
-                               return_tensors='tf', max_length=decoder_max_len,
-                              pad_to_max_length=True)
-    
-    input_ids = encoder_inputs['input_ids'][0]
-    input_attention = encoder_inputs['attention_mask'][0]
-    target_ids = decoder_inputs['input_ids'][0]
-    target_attention = decoder_inputs['attention_mask'][0]
-    
-    outputs = {'input_ids':input_ids, 'attention_mask': input_attention, 
-               'labels':target_ids, 'decoder_attention_mask':target_attention}
-    return outputs
-
-
+# ## Data Pipeline
 
 # ### Process Train/Validation
 
-train_ds = train.map(encode)
-valid_ds = validation.map(encode)
+train_ds = train.map(lambda x: encode(x, tokenizer))
+valid_ds = validation.map(lambda x: encode(x, tokenizer))
 
 ex = next(iter(train_ds))
 print("Example data from the mapped dataset: \n", ex)
-
-
-def to_tf_dataset(dataset):
-    """
-    Encode_Tf function that applies our custom encode function on each tensor example
-    """
-    columns = ['input_ids', 'attention_mask', 'labels', 'decoder_attention_mask']
-    dataset.set_format(type='tensorflow', columns=columns)
-    return_types = {'input_ids':tf.int32, 'attention_mask':tf.int32, 
-                'labels':tf.int32, 'decoder_attention_mask':tf.int32}
-    return_shapes = {'input_ids': tf.TensorShape([None]), 'attention_mask': tf.TensorShape([None]), 
-                  'labels': tf.TensorShape([None]), 'decoder_attention_mask':tf.TensorShape([None])}
-    ds = tf.data.Dataset.from_generator(lambda : dataset, return_types, return_shapes)
-    return ds
-
-
 
 # ### Process Train/Validation =>  Tensors
 
 tf_train_ds = to_tf_dataset(train_ds)
 tf_valid_ds = to_tf_dataset(valid_ds)
 
-
-def create_dataset(dataset, cache_path=None, batch_size=batch_size, 
-                   buffer_size= buffer_size, shuffling=True):
-    """
-    Builds data object ready for use given our training dataset in the form of tensors
-    """
-
-    if cache_path is not None:
-        dataset = dataset.cache(cache_path)        
-    if shuffling:
-        dataset = dataset.shuffle(buffer_size)
-    dataset = dataset.batch(batch_size)
-    dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    return dataset
-
-
-
 # ### Build Train/ Validation =>  Model Ready Input
-
-
 
 tf_train_ds= create_dataset(tf_train_ds, batch_size=batch_size, 
                          shuffling=True, cache_path = None)
 tf_valid_ds = create_dataset(tf_valid_ds, batch_size=batch_size, 
                          shuffling=False, cache_path = None)
 
-
 # ### Custom Learning Rate Scheduler
-
-# +
-class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-    """
-    Class created to optimize the learning rate moderation to start steep, then become gradual
-    """
-    def __init__(self, warmup_steps=1e4):
-        super().__init__()
-
-        self.warmup_steps = tf.cast(warmup_steps, tf.float32)
-    
-    def __call__(self, step):
-        step = tf.cast(step, tf.float32)
-        m = tf.maximum(self.warmup_steps, step)
-        m = tf.cast(m, tf.float32)
-        lr = tf.math.rsqrt(m)
-    
-        return lr 
 
 #Example
 plt.style.use('ggplot')
@@ -297,8 +176,7 @@ schedule = CustomSchedule()
 plt.plot(schedule(tf.range(25000, dtype=tf.float32)))
 plt.xlabel("Steps")
 plt.ylabel("Learning rate")
-        
-# -
+
 
 # ### Setup Callbacks for Tensorboard
 
@@ -347,6 +225,49 @@ model.fit(tf_train_ds, epochs=1, steps_per_epoch=steps, callbacks=callbacks,
 import time
 ts=time.strftime("%Y%m%d_%H%M")
 print(ts)
+
+# <hr>
+
+# ### Generate Results + Metrics
+
+# +
+ts_val= '20210311_1024'
+# ts_val = ts
+model_path = f'{base_dir}/model_runs/ts={ts_val}/model'
+model_gen_out_path = f'{base_dir}/model_runs/ts={ts_val}'
+metrics_path = base_dir + '/e2e-metrics-master'
+
+print('model_path: ', model_path)
+print('model_gen_out_path: ', model_gen_out_path)
+print('metrics_path: ', metrics_path)
+
+# +
+gen_params = {'num_beams': 1, 
+              'max_length': 60,
+              'min_length': 20, 
+              'early_stopping': True,
+              'do_sample': False, 
+              'no_repeat_ngram_size': 2 
+             }
+
+#Returns a list of all the model generated outputs
+model_ouput = get_model_output(model, tokenizer, {}, None, tf_valid_ds, None)
+# -
+#Write model outputs
+v_out = model_ouput['validation']['output']
+write_pre_metrics_data(valid_ds, "validation", v_out, write_path=model_gen_out_path)
+
+
+# Let's Use E2E Evaluation Metrics
+scores = compute_metrics(model_gen_out_path, metrics_path, ds_name='validation')
+scores
+
+# #### If we like the scores and want to save the scores to our model track
+# (We should probably club this with when we save to S3)
+
+# +
+# add_model_record(base_dir, scores)
+# -
 
 # ### Save Model
 
