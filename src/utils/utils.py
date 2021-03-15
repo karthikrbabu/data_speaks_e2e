@@ -4,6 +4,8 @@ import tensorflow as tf
 import time
 import os.path
 import os
+import subprocess
+from csv import writer
 
 
 def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None, tf_test_ds=None):
@@ -19,6 +21,7 @@ def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None,
     
     """
     
+    total_process_time_minutes = 0
     def gen_output(ds, ds_name, gen_params):
         """
         ds => PreFetchDataset  - of Batched Tensors
@@ -65,9 +68,10 @@ def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None,
                 isNext = False
 
         end = time.time()
+        tot_time_min = (end - start)/60
         print()
         print("Took %.2f seconds" % ((end - start)))
-        print("Took {0} minutes".format((end - start)/60))
+        print("Took {0} minutes".format(tot_time_min))
         print()
         return output
 
@@ -75,13 +79,14 @@ def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None,
     train_output = gen_output(tf_train_ds, "Train", gen_params) if tf_train_ds else []
     validation_output = gen_output(tf_valid_ds, "Validation", gen_params) if tf_valid_ds else []
     test_output = gen_output(tf_test_ds, "Test", gen_params) if tf_test_ds else []
+              
     
-    return {"train_output": train_output, "validation_output":validation_output, "test_output":test_output}
+    return {"train": {"output": train_output}, "validation": {"output": validation_output}, "test":{"output": test_output}, "gen_params": gen_params}
 
 
 
 
-def write_out(hf_ds, hf_ds_name, model_out, write_path='.'):
+def write_pre_metrics_data(hf_ds, hf_ds_name, model_out, write_path='.'):
     """
     Write out two files one with the provided references, one with the model output references
     
@@ -95,9 +100,11 @@ def write_out(hf_ds, hf_ds_name, model_out, write_path='.'):
     ref_model_file_path = f'{write_path}/{hf_ds_name}_ref_model.txt'
     
     if os.path.exists(ref_file_path):
+        print("removing: ref_file_path")
         os.remove(ref_file_path)
 
     if os.path.exists(ref_model_file_path):
+        print("ref_model_file_path")
         os.remove(ref_model_file_path)
 
     print(f"Writing {hf_ds_name} files >> {write_path}")
@@ -114,6 +121,58 @@ def write_out(hf_ds, hf_ds_name, model_out, write_path='.'):
 
     print("Wrote: ", ref_file_path)
     print("Wrote: ", ref_model_file_path)
+
+
+def compute_metrics(output_files_path='.', metrics_path='.', ds_name=''):
+    """
+    output_files_path => provide path to access ref + model_ref txt files
+    ds_name => name of data i.e. ['train', 'validation', 'test']
+    """
+    
+    #Prepare the files paths
+    model_version = remove_prefix(output_files_path.split('/')[-1], 'ts=')
+    ref_file_path = f'{output_files_path}/{ds_name}_ref.txt'
+    ref_model_file_path = f'{output_files_path}/{ds_name}_ref_model.txt'
+    
+    print("ref_file_path: ", ref_file_path)
+    print("ref_model_file_path: ", ref_model_file_path)
+    
+    #Build the script command, execute with Popen
+    cmd = f"""{metrics_path}/measure_scores.py {ref_file_path} {ref_model_file_path} -p -t -H"""
+    p = subprocess.Popen(f'{cmd}', shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    outs = []
+    for line in p.stdout.readlines():
+        outs.append(line)
+    retval = p.wait()
+    
+    #Get expected output in dictionary format
+    headers = outs[-2].decode("utf-8").strip().split()
+    vals = outs[-1].decode("utf-8").strip().split()
+    output = dict(zip(headers, vals))
+    output['version'] = 'v' + model_version
+    return output
+
+
+def add_model_record(file_path, metric_scores):
+    """
+    Add this model version to our history of model performance
+    """
+    
+    file_name = f"{file_path}/model_track.csv"
+    
+    # Open file in append mode
+    with open(file_name, 'a+', newline='') as write_obj:
+        # Create a writer object from csv module
+        csv_writer = writer(write_obj)
+        
+        list_of_elem = [metric_scores['version'], metric_scores['BLEU'], metric_scores['NIST'], \
+                        metric_scores['METEOR'], metric_scores['ROUGE_L'], metric_scores['CIDEr'], 
+                        metric_scores['File']]
+        # Add contents of list as last row in the csv file
+        csv_writer.writerow(list_of_elem)
+
+    print("Added Record")
+
 
 
 def encode(example, tokenizer, encoder_max_len=60, decoder_max_len=60):
@@ -198,5 +257,11 @@ def print_kwargs(**kwargs):
     # Iterating over the Python kwargs dictionary
     for k, v in kwargs.items():
         print(k, v)
+
+
+def remove_prefix(text, prefix):
+    if text.startswith(prefix):
+        return text[len(prefix):]
+    return text  # or whatever
 
 
