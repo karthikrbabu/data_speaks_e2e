@@ -54,7 +54,7 @@ import tensorflow_datasets as tfds
 
 #Custom Utils Lib
 from utils.utils import (get_model_output, write_pre_metrics_data, encode,
-                        to_tf_dataset, create_dataset, compute_metrics, add_model_record)
+                        to_tf_dataset, create_dataset, compute_metrics, add_model_record, save_model_to_s3)
 from classes.t5Wrapper import T5Wrapper
 from classes.customScheduler import CustomSchedule
 

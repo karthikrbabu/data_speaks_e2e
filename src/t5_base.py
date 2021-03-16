@@ -73,7 +73,7 @@ import tensorflow as tf
 
 #Custom Utils Lib
 from utils.utils import (get_model_output, write_pre_metrics_data, add_model_record,
-                         encode, to_tf_dataset, create_dataset, compute_metrics)
+                         encode, to_tf_dataset, create_dataset, compute_metrics, save_model_to_s3)
 from classes.t5Wrapper import T5Wrapper
 from classes.customScheduler import CustomSchedule
 
@@ -105,7 +105,16 @@ save_path = f"{data_dir}/experiments/t5/models"
 cache_path_train = f"{data_dir}/cache/t5.train"
 cache_path_test = f"{data_dir}/cache/t5.test"
 
-print(base_dir)
+print("base directory: ",base_dir)
+
+ts_val=time.strftime("%Y%m%d_%H%M")
+model_path = f'{base_dir}/model_runs/ts={ts_val}/model'
+model_gen_out_path = f'{base_dir}/model_runs/ts={ts_val}'
+metrics_path = base_dir + '/e2e-metrics-master'
+
+print('model_path: ', model_path)
+print('model_gen_out_path: ', model_gen_out_path)
+print('metrics_path: ', metrics_path)
 # -
 
 # ### Init Tokenizer
@@ -222,24 +231,9 @@ epochs_done = 0
 model.fit(tf_train_ds, epochs=1, steps_per_epoch=steps, callbacks=callbacks, 
           validation_data=tf_valid_ds, validation_steps=valid_steps, initial_epoch=epochs_done)
 
-import time
-ts=time.strftime("%Y%m%d_%H%M")
-print(ts)
-
 # <hr>
 
 # ### Generate Results + Metrics
-
-# +
-ts_val= '20210311_1024'
-# ts_val = ts
-model_path = f'{base_dir}/model_runs/ts={ts_val}/model'
-model_gen_out_path = f'{base_dir}/model_runs/ts={ts_val}'
-metrics_path = base_dir + '/e2e-metrics-master'
-
-print('model_path: ', model_path)
-print('model_gen_out_path: ', model_gen_out_path)
-print('metrics_path: ', metrics_path)
 
 # +
 gen_params = {'num_beams': 1, 
@@ -273,26 +267,15 @@ scores
 
 # Keep for AWS path
 # model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{ts}/')
-model.save_pretrained(f'{base_dir}/model_runs/{ts}/')
+model.save_pretrained(f'{base_dir}/model_runs/{ts_val}/')
 
-
+save_model_to_s3(model, ts_val)
 
 # ### Load Model
 
-loaded_model = T5Wrapper.from_pretrained(f'{base_dir}/model_runs/{ts}/')
-
-def save_model_to_s3(model, localfolder):
-    model.save_pretrained(f'{base_dir}/model_runs/{localfolder}/model/')
-    s3_bucket=s3.Bucket('w266-karthik-praveen')
-    for obj in s3_bucket.objects.filter(Prefix='latest/'):
-        s3.Object(s3_bucket.name,obj.key).delete()
-    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/config.json',f'{localfolder}/model/config.json')
-    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/tf_model.h5',f'{localfolder}/model/tf_model.h5')
-    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/config.json',f'latest/model/config.json')
-    s3_bucket.upload_file(f'{base_dir}/model_runs/{localfolder}/model/tf_model.h5',f'latest/model/tf_model.h5')
+loaded_model = T5Wrapper.from_pretrained(model_path)
 
 
-save_model_to_s3(model, ts)
 
 loaded_model = T5Wrapper.from_pretrained(f'{base_dir}/model_runs/{ts}/')
 mr = validation['meaning_representation'][200]
