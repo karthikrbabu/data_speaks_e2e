@@ -231,6 +231,14 @@ epochs_done = 0
 model.fit(tf_train_ds, epochs=1, steps_per_epoch=steps, callbacks=callbacks, 
           validation_data=tf_valid_ds, validation_steps=valid_steps, initial_epoch=epochs_done)
 
+
+
+# ### Save Model
+
+# Keep for AWS path
+# model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{ts}/')
+save_model_to_s3(model,base_dir, ts_val)
+
 # <hr>
 
 # ### Generate Results + Metrics
@@ -254,7 +262,7 @@ write_pre_metrics_data(valid_ds, "validation", v_out, write_path=model_gen_out_p
 
 # Let's Use E2E Evaluation Metrics
 scores = compute_metrics(model_gen_out_path, metrics_path, ds_name='validation')
-scores
+print(scores)
 
 # #### If we like the scores and want to save the scores to our model track
 # (We should probably club this with when we save to S3)
@@ -263,22 +271,11 @@ scores
 # add_model_record(base_dir, scores)
 # -
 
-# ### Save Model
-
-# Keep for AWS path
-# model.save_pretrained(f'/home/ubuntu/praveen/data_speaks_e2e/model_runs/{ts}/')
-model.save_pretrained(f'{base_dir}/model_runs/{ts_val}/')
-
-save_model_to_s3(model, ts_val)
-
-# ### Load Model
-
-loaded_model = T5Wrapper.from_pretrained(model_path)
 
 
+# ### Sample run on a single record.
 
-loaded_model = T5Wrapper.from_pretrained(f'{base_dir}/model_runs/{ts}/')
-mr = validation['meaning_representation'][200]
+mr = validation['meaning_representation'][0]
 print(mr)
 
 input_text =  f"data_to_text: {mr}"
@@ -288,9 +285,19 @@ encoded_query = tokenizer(input_text,
 input_ids = encoded_query["input_ids"]
 attention_mask = encoded_query["attention_mask"]
 print(input_ids)
-generated_answer = loaded_model.generate(input_ids, attention_mask=attention_mask, 
+generated_answer = model.generate(input_ids, attention_mask=attention_mask, 
                                  max_length=decoder_max_len, top_p=0.95, top_k=50, repetition_penalty=2)
 decoded_answer = tokenizer.decode(generated_answer.numpy()[0])
 print("Model REF: ", decoded_answer)
+
+
+
+# ### Load Model
+
+# +
+#Below is an optional step to load a pre-trained and saved model to directly run predictions.
+
+#model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required. 
+# -
 
 
