@@ -243,21 +243,23 @@ def create_dataset(dataset, cache_path=None, batch_size=30,
 
 
 
-def save_model_to_s3(model,base_dir, localfolder):
+def save_model_to_s3(model, model_path, best=False):
     """
     Saves the trained model to a local directory and then upload it to s3
     In s3, it first clears the exisiting 'latest' model and
         uploads the new model to latest and also by its timestamp
     """
 
-    model.save_pretrained(f'{base_dir}/model_runs/ts={localfolder}/model/')
+    model.save_pretrained(f'{model_path}')
     s3_bucket=s3.Bucket('w266-karthik-praveen')
     for obj in s3_bucket.objects.filter(Prefix='latest/'):
         s3.Object(s3_bucket.name,obj.key).delete()
-    s3_bucket.upload_file(f'{base_dir}/model_runs/ts={localfolder}/model/config.json',f'ts={localfolder}/model/config.json')
-    s3_bucket.upload_file(f'{base_dir}/model_runs/ts={localfolder}/model/tf_model.h5',f'ts={localfolder}/model/tf_model.h5')
-    s3_bucket.upload_file(f'{base_dir}/model_runs/ts={localfolder}/model/config.json',f'latest/model/config.json')
-    s3_bucket.upload_file(f'{base_dir}/model_runs/ts={localfolder}/model/tf_model.h5',f'latest/model/tf_model.h5')
+    s3_base=model_path.split("/")[-2]
+    s3_bucket.upload_file(f'{model_path}/config.json',f'{s3_base}/config.json')
+    s3_bucket.upload_file(f'{model_path}/tf_model.h5',f'{s3_base}/tf_model.h5')
+    if(best): 
+        s3_bucket.upload_file(f'{model_path}/config.json',f'best/{s3_base}/config.json')
+        s3_bucket.upload_file(f'{model_path}/tf_model.h5',f'best/{s3_base}/tf_model.h5')
 
 
 
