@@ -86,7 +86,7 @@ os.chdir(base_dir)
 print("Base Dir: ", base_dir)
 
 #Custom Utils Lib
-from src.utils.utils import (get_model_output, write_pre_metrics_data, save_metrics,
+from src.utils.utils import (get_model_output, write_model_output, save_metrics,
                          encode, to_tf_dataset, create_dataset, compute_metrics, save_model_to_s3)
 from src.classes.t5Wrapper import T5Wrapper
 from src.classes.customScheduler import CustomSchedule
@@ -141,8 +141,8 @@ print("Example data from the dataset: \n", data)
 warmup_steps = 1e4
 epochs = 5
 batch_size = 30
-encoder_max_len = 60
-decoder_max_len = 60
+encoder_max_len = 80
+decoder_max_len = 80
 buffer_size = 1000
 ntrain = len(train)
 nvalid = len(validation)
@@ -161,8 +161,8 @@ print("Total Epochs: ", epochs)
 
 # ### Process Train/Validation
 
-train_ds = train.map(lambda x: encode(x, tokenizer))
-valid_ds = validation.map(lambda x: encode(x, tokenizer))
+train_ds = train.map(lambda x: encode(x, tokenizer, encoder_max_len, decoder_max_len))
+valid_ds = validation.map(lambda x: encode(x, tokenizer, encoder_max_len, decoder_max_len))
 
 ex = next(iter(train_ds))
 print("Example data from the mapped dataset: \n", ex)
@@ -191,16 +191,20 @@ plt.ylabel("Learning rate")
 
 # ### Setup Callbacks for Tensorboard
 
-# +
-start_profile_batch = steps+10
-stop_profile_batch = start_profile_batch + 100
-profile_range = f"{start_profile_batch},{stop_profile_batch}"
+save_path
 
-log_path = log_dir + "/" + datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1,
-                                                     update_freq=20,profile_batch=profile_range)
+# +
+# start_profile_batch = steps+10
+# stop_profile_batch = start_profile_batch + 100
+# profile_range = f"{start_profile_batch},{stop_profile_batch}"
+
+# log_path = log_dir + "/" + datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+# tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1,
+#                                                      update_freq=20,profile_batch=profile_range)
 
 checkpoint_filepath = save_path + "/" + "T5-{epoch:04d}-{val_loss:.4f}.ckpt"
+
+
 model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
     save_weights_only=False,
@@ -209,8 +213,12 @@ model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     save_best_only=True)
 
 callbacks = [tensorboard_callback, model_checkpoint_callback] 
+
+
 metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
 # -
+
+metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
 
 learning_rate = CustomSchedule() # learning_rate = 0.001  # Instead set a static learning rate
 optimizer = tf.keras.optimizers.Adam(learning_rate)
@@ -232,27 +240,71 @@ model.summary()
 #
 
 # %load_ext tensorboard
-# %tensorboard --logdir f"{base_dir}/tf_data/experiments/t5/logs"
+# %tensorboard --logdir f"{exp_dir}/tf_data/experiments/t5/logs"
+
+# +
+# epochs_done = 0
+# model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps, callbacks=callbacks, 
+#           validation_data=tf_valid_ds, validation_steps=valid_steps, initial_epoch=epochs_done)
+
 
 epochs_done = 0
-model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps, callbacks=callbacks, 
+model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps,
           validation_data=tf_valid_ds, validation_steps=valid_steps, initial_epoch=epochs_done)
+# -
 
 # <hr>
+
+
+
+# Load Model
+model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required. 
 
 # ### Generate Results + Metrics
 
 # +
-gen_params = {'num_beams': 1, 
-              'max_length': 60,
-              'min_length': 20, 
+gen_params = {'num_beams': 5,
+              'max_length': 45,
+              'min_length': 10,
               'early_stopping': True,
               'do_sample': False,
-              'no_repeat_ngram_size': 2 
+              'no_repeat_ngram_size': 2
              }
 
+
+# max_length (int, optional, defaults to 20) – The maximum length of the sequence to be generated.
+
+# min_length (int, optional, defaults to 10) – The minimum length of the sequence to be generated.
+
+# do_sample (bool, optional, defaults to False) – Whether or not to use sampling ; use greedy decoding otherwise.
+
+# early_stopping (bool, optional, defaults to False) – Whether to stop the beam search when at least num_beams sentences are finished per batch or not.
+
+# num_beams (int, optional, defaults to 1) – Number of beams for beam search. 1 means no beam search.
+
+# temperature (float, optional, defaults tp 1.0) – The value used to module the next token probabilities.
+
+# top_k (int, optional, defaults to 50) – The number of highest probability vocabulary tokens to keep for top-k-filtering.
+
+# top_p (float, optional, defaults to 1.0) – If set to float < 1, only the most probable tokens with probabilities that add up to top_p or higher are kept for generation.
+
+# repetition_penalty (float, optional, defaults to 1.0) – The parameter for repetition penalty. 1.0 means no penalty. See this paper for more details.
+
+# length_penalty (float, optional, defaults to 1.0) – Exponential penalty to the length. 1.0 means no penalty.
+# Set to values < 1.0 in order to encourage the model to generate shorter sequences, to a value > 1.0 in order to encourage the model to produce longer sequences.
+
+# no_repeat_ngram_size (int, optional, defaults to 0) – If set to int > 0, all ngrams of that size can only occur once.
+
+# num_return_sequences (int, optional, defaults to 1) – The number of independently computed returned sequences for each element in the batch.
+
+# use_cache – (bool, optional, defaults to True): Whether or not the model should use the past last key/values attentions (if applicable to the model) to speed up decoding.
+
+
+
+
+
 #Returns a list of all the model generated outputs
-model_ouput = get_model_output(model, tokenizer, {}, None, tf_valid_ds, None)
+model_ouput = get_model_output(model, tokenizer, gen_params, None, tf_valid_ds, None)
 # -
 #Write model outputs
 v_out = model_ouput['validation']['output']
@@ -261,9 +313,12 @@ print(ts_val)
 write_model_output(valid_ds, "validation", ts_val, v_out, write_path=exp_dir)
 
 
+# +
 # Let's Use E2E Evaluation Metrics
-scores = compute_metrics(exp_dir, base_dir, ts_val, ds_name='validation', gen_params)
+scores = compute_metrics(exp_dir, base_dir, ts_val, 'validation', gen_params)
+
 print(scores)
+# -
 
 print(scores)
 save_metrics(exp_dir, ts_val, scores)
@@ -273,6 +328,8 @@ save_metrics(exp_dir, ts_val, scores)
 
 # ### Save Model (only if its worth it)
 
+
+model_path
 
 # Keep for AWS path
 model.save_pretrained(f'{model_path}')
@@ -285,5 +342,16 @@ model.save_pretrained(f'{model_path}')
 
 #model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required. 
 # -
+
+
+
+
+
+
+
+
+
+
+
 
 

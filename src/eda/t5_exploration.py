@@ -80,8 +80,6 @@ train.head()
 
 # +
 tokenizer = AutoTokenizer.from_pretrained('t5-small')
-encoder_max_len = 60
-decoder_max_len = 60
 
 #Vocab Length
 print("Vocab Length: ", len(tokenizer))
@@ -92,7 +90,7 @@ def encode_mr_to_len(mr):
     """
     Return length after tokenization for MR 
     """
-    mr_base = f"data_to_text: {str(mr)} </s>"
+    mr_base = f"data_to_text: {str(mr)}"
 
     encoder_inputs = tokenizer(mr_base, truncation=True, return_tensors='tf', pad_to_max_length=True)
     
@@ -105,7 +103,7 @@ def encode_ref_to_len(ref):
     """
     Return length after tokenization for REF
     """
-    ref_base = f"{str(ref)} </s>"
+    ref_base = f"{str(ref)}"
     decoder_inputs = tokenizer(ref_base, truncation=True, return_tensors='tf', pad_to_max_length=True)
     
     target_ids = decoder_inputs['input_ids'][0]
@@ -147,5 +145,26 @@ fig.show()
 
 # #### 99% is captured by 50 tokens
 
+# <hr>
+
+
+# ### Validation Look
+
+dev['mr_token_length'] = dev['mr'].apply(encode_mr_to_len)
+dev['ref_token_length'] = dev['ref'].apply(encode_mr_to_len)
+
+dev_mrs_token_counts = pd.DataFrame({'counts': dev['mr_token_length']})
+print(stats.describe(dev_mrs_token_counts['counts']))
+fig = px.histogram(dev_mrs_token_counts, x="counts", histnorm='percent') # histnorm: percent, probability, density
+fig.update_layout(title_text="Histogram: Dev Mrs Token Counts")
+fig.show()
+
+
+
+dev_labels_token_counts = pd.DataFrame({'counts': dev['ref_token_length']})
+print(stats.describe(dev_labels_token_counts['counts']))
+fig = px.histogram(dev_labels_token_counts, x="counts", histnorm='percent') # histnorm: percent, probability, density
+fig.update_layout(title_text="Histogram: Dev Labels Token Counts")
+fig.show()
 
 
