@@ -255,16 +255,53 @@ model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps,
 
 # <hr>
 
+
+
+# Load Model
+model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required. 
+
 # ### Generate Results + Metrics
 
 # +
-gen_params = {'num_beams': 2, 
-              'max_length': 70,
-              'min_length': 30, 
+gen_params = {'num_beams': 5,
+              'max_length': 45,
+              'min_length': 10,
               'early_stopping': True,
               'do_sample': False,
-              'no_repeat_ngram_size': 2 
+              'no_repeat_ngram_size': 2
              }
+
+
+# max_length (int, optional, defaults to 20) – The maximum length of the sequence to be generated.
+
+# min_length (int, optional, defaults to 10) – The minimum length of the sequence to be generated.
+
+# do_sample (bool, optional, defaults to False) – Whether or not to use sampling ; use greedy decoding otherwise.
+
+# early_stopping (bool, optional, defaults to False) – Whether to stop the beam search when at least num_beams sentences are finished per batch or not.
+
+# num_beams (int, optional, defaults to 1) – Number of beams for beam search. 1 means no beam search.
+
+# temperature (float, optional, defaults tp 1.0) – The value used to module the next token probabilities.
+
+# top_k (int, optional, defaults to 50) – The number of highest probability vocabulary tokens to keep for top-k-filtering.
+
+# top_p (float, optional, defaults to 1.0) – If set to float < 1, only the most probable tokens with probabilities that add up to top_p or higher are kept for generation.
+
+# repetition_penalty (float, optional, defaults to 1.0) – The parameter for repetition penalty. 1.0 means no penalty. See this paper for more details.
+
+# length_penalty (float, optional, defaults to 1.0) – Exponential penalty to the length. 1.0 means no penalty.
+# Set to values < 1.0 in order to encourage the model to generate shorter sequences, to a value > 1.0 in order to encourage the model to produce longer sequences.
+
+# no_repeat_ngram_size (int, optional, defaults to 0) – If set to int > 0, all ngrams of that size can only occur once.
+
+# num_return_sequences (int, optional, defaults to 1) – The number of independently computed returned sequences for each element in the batch.
+
+# use_cache – (bool, optional, defaults to True): Whether or not the model should use the past last key/values attentions (if applicable to the model) to speed up decoding.
+
+
+
+
 
 #Returns a list of all the model generated outputs
 model_ouput = get_model_output(model, tokenizer, gen_params, None, tf_valid_ds, None)
@@ -276,9 +313,12 @@ print(ts_val)
 write_model_output(valid_ds, "validation", ts_val, v_out, write_path=exp_dir)
 
 
+# +
 # Let's Use E2E Evaluation Metrics
-scores = compute_metrics(exp_dir, base_dir, ts_val, ds_name='validation', gen_params)
+scores = compute_metrics(exp_dir, base_dir, ts_val, 'validation', gen_params)
+
 print(scores)
+# -
 
 print(scores)
 save_metrics(exp_dir, ts_val, scores)
@@ -302,6 +342,12 @@ model.save_pretrained(f'{model_path}')
 
 #model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required. 
 # -
+
+
+
+
+
+
 
 
 
