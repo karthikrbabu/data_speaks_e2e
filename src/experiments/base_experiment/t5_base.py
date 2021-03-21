@@ -86,7 +86,7 @@ os.chdir(base_dir)
 print("Base Dir: ", base_dir)
 
 #Custom Utils Lib
-from src.utils.utils import (get_model_output, write_pre_metrics_data, save_metrics,
+from src.utils.utils import (get_model_output, write_model_output, save_metrics,
                          encode, to_tf_dataset, create_dataset, compute_metrics, save_model_to_s3)
 from src.classes.t5Wrapper import T5Wrapper
 from src.classes.customScheduler import CustomSchedule
@@ -262,7 +262,7 @@ write_model_output(valid_ds, "validation", ts_val, v_out, write_path=exp_dir)
 
 
 # Let's Use E2E Evaluation Metrics
-scores = compute_metrics(exp_dir, base_dir, ts_val, ds_name='validation', gen_params)
+scores = compute_metrics(exp_dir, base_dir, ts_val, 'validation', gen_params)
 print(scores)
 
 print(scores)
@@ -285,5 +285,8 @@ model.save_pretrained(f'{model_path}')
 
 #model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required. 
 # -
+
+
+
 
 
