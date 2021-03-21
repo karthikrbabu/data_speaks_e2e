@@ -68,9 +68,9 @@ assert int(tf_version_split[0])==2 and int(tf_version_split[-2])>=3, f"Tensorflo
 
 # ### Load Data 
 
-train = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/train-fixed.no-ol.csv').drop(["fixed","orig_mr"], axis=1)
-dev = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/devel-fixed.no-ol.csv').drop(["fixed","orig_mr"], axis=1) 
-test = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/test-fixed.csv').drop(["fixed","orig_mr"], axis=1)
+train = pd.read_csv('../../data/e2e-cleaning-master/cleaned-data/train-fixed.no-ol.csv').drop(["fixed","orig_mr"], axis=1)
+dev = pd.read_csv('../../data/e2e-cleaning-master/cleaned-data/devel-fixed.no-ol.csv').drop(["fixed","orig_mr"], axis=1) 
+test = pd.read_csv('../../data/e2e-cleaning-master/cleaned-data/test-fixed.csv').drop(["fixed","orig_mr"], axis=1)
 print("Train Size", train.shape)
 print("Dev Size", dev.shape)
 print("Test Size", test.shape)
@@ -80,8 +80,6 @@ train.head()
 
 # +
 tokenizer = AutoTokenizer.from_pretrained('t5-small')
-encoder_max_len = 60
-decoder_max_len = 60
 
 #Vocab Length
 print("Vocab Length: ", len(tokenizer))
@@ -92,7 +90,7 @@ def encode_mr_to_len(mr):
     """
     Return length after tokenization for MR 
     """
-    mr_base = f"data_to_text: {str(mr)} </s>"
+    mr_base = f"data_to_text: {str(mr)}"
 
     encoder_inputs = tokenizer(mr_base, truncation=True, return_tensors='tf', pad_to_max_length=True)
     
@@ -105,7 +103,7 @@ def encode_ref_to_len(ref):
     """
     Return length after tokenization for REF
     """
-    ref_base = f"{str(ref)} </s>"
+    ref_base = f"{str(ref)}"
     decoder_inputs = tokenizer(ref_base, truncation=True, return_tensors='tf', pad_to_max_length=True)
     
     target_ids = decoder_inputs['input_ids'][0]
@@ -147,5 +145,26 @@ fig.show()
 
 # #### 99% is captured by 50 tokens
 
+# <hr>
+
+
+# ### Validation Look
+
+dev['mr_token_length'] = dev['mr'].apply(encode_mr_to_len)
+dev['ref_token_length'] = dev['ref'].apply(encode_mr_to_len)
+
+dev_mrs_token_counts = pd.DataFrame({'counts': dev['mr_token_length']})
+print(stats.describe(dev_mrs_token_counts['counts']))
+fig = px.histogram(dev_mrs_token_counts, x="counts", histnorm='percent') # histnorm: percent, probability, density
+fig.update_layout(title_text="Histogram: Dev Mrs Token Counts")
+fig.show()
+
+
+
+dev_labels_token_counts = pd.DataFrame({'counts': dev['ref_token_length']})
+print(stats.describe(dev_labels_token_counts['counts']))
+fig = px.histogram(dev_labels_token_counts, x="counts", histnorm='percent') # histnorm: percent, probability, density
+fig.update_layout(title_text="Histogram: Dev Labels Token Counts")
+fig.show()
 
 

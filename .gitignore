@@ -114,6 +114,9 @@ venv.bak/
 
 #Tensorflow Logging
 tf_data/
+model_runs/
+**/output
+**/model
 
 # Spyder project settings
 .spyderproject
