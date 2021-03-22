@@ -183,12 +183,16 @@ def save_metrics(exp_dir, ts, metric_scores):
 
 
 
-def encode(example, tokenizer, encoder_max_len=60, decoder_max_len=60):
+def encode(example, tokenizer, is_custom=False, encoder_max_len=60, decoder_max_len=60):
     """
     Encode function that uses the T5 Tokenizer on each example
     """
-    mr = example['meaning_representation']
-    ref = example['human_reference']
+    if is_custom:
+        mr = example[0]
+        ref = example[1]
+    else:    
+        mr = example['meaning_representation']
+        ref = example['human_reference']
   
     mr_base = f"data_to_text: {str(mr)}"
     ref_base = f"{str(ref)}"
