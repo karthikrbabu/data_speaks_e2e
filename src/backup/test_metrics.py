@@ -23,6 +23,7 @@ import json
 import re
 import sys
 import os
+import subprocess
 import datetime
 import time
 import collections
@@ -52,16 +53,26 @@ import tensorflow_datasets as tfds
 # -
 
 #Custom Utils Lib
-from utils.utils import get_model_output, write_out_tsv, encode, to_tf_dataset, create_dataset
+from utils.utils import (get_model_output, write_pre_metrics_data, encode,
+                        to_tf_dataset, create_dataset, compute_metrics, add_model_record, save_model_to_s3)
 from classes.t5Wrapper import T5Wrapper
 from classes.customScheduler import CustomSchedule
 
 # ### Load a prior model
 
-# !ls /home/ubuntu/karthik/data_speaks_e2e/model_runs
+base_dir = os.path.abspath(os.path.join(os.getcwd(),os.pardir))
+base_dir
 
+# +
 ts_val= '20210311_1024'
-model_path = f'/home/ubuntu/karthik/data_speaks_e2e/model_runs/ts={ts_val}'
+model_path = f'{base_dir}/model_runs/ts={ts_val}/model'
+model_gen_out_path = f'{base_dir}/model_runs/ts={ts_val}'
+metrics_path = base_dir + '/e2e-metrics-master'
+
+print('model_path: ', model_path)
+print('model_gen_out_path: ', model_gen_out_path)
+print('metrics_path: ', metrics_path)
+# -
 
 loaded_model = T5Wrapper.from_pretrained(f'{model_path}')
 tokenizer = AutoTokenizer.from_pretrained('t5-small')
@@ -102,16 +113,18 @@ model_ouput = get_model_output(loaded_model, tokenizer, {}, None, tf_valid_ds, N
 # -
 # ### Write Output
 
-v_out = model_ouput['validation_output']
-write_out_tsv(valid_ds, "validation", v_out, write_path=model_path)
+v_out = model_ouput['validation']['output']
+write_pre_metrics_data(valid_ds, "validation", v_out, write_path=model_gen_out_path)
 
 
 # <hr>
 
 # ### Let's Use E2E Evaluation Metrics
 
-# ls
+base_dir
 
-# cd ..
+scores = compute_metrics(model_gen_out_path, metrics_path, ds_name='validation')
+
+add_model_record(base_dir, scores)
 
 

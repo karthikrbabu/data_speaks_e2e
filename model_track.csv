@@ -1,2 +1,0 @@
-version,BLEU,NIST,METEOR,ROUGE_L,CIDEr,File
-v20210311_1024,0.1681,1.9766,0.2685,0.4428,0.9849,/home/ubuntu/karthik/data_speaks_e2e/model_runs/ts=20210311_1024/validation_ref_model.txt

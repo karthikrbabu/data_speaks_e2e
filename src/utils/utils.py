@@ -1,15 +1,19 @@
 # Utilities for processing model outputs, and writing it out for later usage
 
+# +
 import tensorflow as tf
 import time
 import os.path
 import os
 import subprocess
-from csv import writer
+import csv
+
 #AWS
 import boto3
 s3 = boto3.resource('s3')
 
+
+# -
 
 def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None, tf_test_ds=None):
     """
@@ -89,28 +93,28 @@ def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None,
 
 
 
-def write_pre_metrics_data(hf_ds, hf_ds_name, model_out, write_path='.'):
+def write_model_output(hf_ds, hf_ds_name, ts, model_out, write_path='.'):
     """
     Write out two files one with the provided references, one with the model output references
     
+    ts=> timestamp
     hf_ds => HuggingFaceDataset - features: ['meaning_representation', 'human_reference']
     gen_out => List - Corresponding model generated outputs for hf_ds
     hf_ds_name => String - Name of Dataset
     
     """
 
-    ref_file_path = f'{write_path}/{hf_ds_name}_ref.txt'
-    ref_model_file_path = f'{write_path}/{hf_ds_name}_ref_model.txt'
-    
-    if os.path.exists(ref_file_path):
-        print("removing: ref_file_path")
-        os.remove(ref_file_path)
+    path = f'{write_path}/output/{ts}'
+    if not os.path.exists(f'{path}'):
+        os.makedirs(path)
+    else:
+        print("removing: path")
+        os.remove(path)
+          
+    ref_file_path = f'{path}/{hf_ds_name}_ref.txt'
+    ref_model_file_path = f'{path}/{hf_ds_name}_ref_model.txt'
 
-    if os.path.exists(ref_model_file_path):
-        print("ref_model_file_path")
-        os.remove(ref_model_file_path)
-
-    print(f"Writing {hf_ds_name} files >> {write_path}")
+    print(f"Writing {hf_ds_name} files >> {path}")
     reference = hf_ds['human_reference']
     system_output = model_out
     
@@ -126,22 +130,23 @@ def write_pre_metrics_data(hf_ds, hf_ds_name, model_out, write_path='.'):
     print("Wrote: ", ref_model_file_path)
 
 
-def compute_metrics(output_files_path='.', metrics_path='.', ds_name=''):
+def compute_metrics(output_files_path, base_dir, ts, ds_name, gen_params):
     """
     output_files_path => provide path to access ref + model_ref txt files
     ds_name => name of data i.e. ['train', 'validation', 'test']
+    gen_params => parameters used for model
     """
     
     #Prepare the files paths
-    model_version = remove_prefix(output_files_path.split('/')[-1], 'ts=')
-    ref_file_path = f'{output_files_path}/{ds_name}_ref.txt'
-    ref_model_file_path = f'{output_files_path}/{ds_name}_ref_model.txt'
+    model_version = ts
+    ref_file_path = f'{output_files_path}/output/{ts}/{ds_name}_ref.txt'
+    ref_model_file_path = f'{output_files_path}/output/{ts}/{ds_name}_ref_model.txt'
     
     print("ref_file_path: ", ref_file_path)
     print("ref_model_file_path: ", ref_model_file_path)
     
     #Build the script command, execute with Popen
-    cmd = f"""{metrics_path}/measure_scores.py {ref_file_path} {ref_model_file_path} -p -t -H"""
+    cmd = f"""{base_dir}/src/metrics_script/measure_scores.py {ref_file_path} {ref_model_file_path} -p -t -H"""
     p = subprocess.Popen(f'{cmd}', shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     outs = []
     for line in p.stdout.readlines():
@@ -153,27 +158,27 @@ def compute_metrics(output_files_path='.', metrics_path='.', ds_name=''):
     vals = outs[-1].decode("utf-8").strip().split()
     output = dict(zip(headers, vals))
     output['version'] = 'v' + model_version
+    output['params'] = gen_params
     return output
 
 
-def add_model_record(file_path, metric_scores):
+def save_metrics(exp_dir, ts, metric_scores):
     """
-    Add this model version to our history of model performance
+    Save the metrics/metadat for this run
     """
-    
-    file_name = f"{file_path}/model_track.csv"
-    
-    # Open file in append mode
-    with open(file_name, 'a+', newline='') as write_obj:
-        # Create a writer object from csv module
-        csv_writer = writer(write_obj)
-        
-        list_of_elem = [metric_scores['version'], metric_scores['BLEU'], metric_scores['NIST'], \
-                        metric_scores['METEOR'], metric_scores['ROUGE_L'], metric_scores['CIDEr'], 
-                        metric_scores['File']]
-        # Add contents of list as last row in the csv file
-        csv_writer.writerow(list_of_elem)
+    file_name = f"{exp_dir}/output/{ts}/metrics.csv"
+    line = [metric_scores['version'], metric_scores['BLEU'], metric_scores['NIST'], \
+            metric_scores['METEOR'], metric_scores['ROUGE_L'], metric_scores['CIDEr'], \
+            metric_scores['params'], metric_scores['File']]
 
+    header = ['version', 'BLEU', 'NIST', 'METEOR', 'ROUGE_L', 'CIDEr', 'params', 'File']
+
+    with open(file_name, "w", newline='') as f:
+        writer = csv.writer(f, delimiter=',')
+        writer.writerow(header) # write the header
+        
+        # write the actual content line by line
+        writer.writerow(line)
     print("Added Record")
 
 
@@ -238,21 +243,23 @@ def create_dataset(dataset, cache_path=None, batch_size=30,
 
 
 
-def save_model_to_s3(model,base_dir, localfolder):
+def save_model_to_s3(model, model_path, best=False):
     """
     Saves the trained model to a local directory and then upload it to s3
     In s3, it first clears the exisiting 'latest' model and
         uploads the new model to latest and also by its timestamp
     """
 
-    model.save_pretrained(f'{base_dir}/model_runs/ts={localfolder}/model/')
+    model.save_pretrained(f'{model_path}')
     s3_bucket=s3.Bucket('w266-karthik-praveen')
     for obj in s3_bucket.objects.filter(Prefix='latest/'):
         s3.Object(s3_bucket.name,obj.key).delete()
-    s3_bucket.upload_file(f'{base_dir}/model_runs/ts={localfolder}/model/config.json',f'ts={localfolder}/model/config.json')
-    s3_bucket.upload_file(f'{base_dir}/model_runs/ts={localfolder}/model/tf_model.h5',f'ts={localfolder}/model/tf_model.h5')
-    s3_bucket.upload_file(f'{base_dir}/model_runs/ts={localfolder}/model/config.json',f'latest/model/config.json')
-    s3_bucket.upload_file(f'{base_dir}/model_runs/ts={localfolder}/model/tf_model.h5',f'latest/model/tf_model.h5')
+    s3_base=model_path.split("/")[-2]
+    s3_bucket.upload_file(f'{model_path}/config.json',f'{s3_base}/config.json')
+    s3_bucket.upload_file(f'{model_path}/tf_model.h5',f'{s3_base}/tf_model.h5')
+    if(best): 
+        s3_bucket.upload_file(f'{model_path}/config.json',f'best/{s3_base}/config.json')
+        s3_bucket.upload_file(f'{model_path}/tf_model.h5',f'best/{s3_base}/tf_model.h5')
 
 
 
