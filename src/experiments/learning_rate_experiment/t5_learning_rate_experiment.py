@@ -45,7 +45,6 @@ from scipy import stats
 import math
 import json
 import re
-import random
 import os
 import datetime
 import time
@@ -131,45 +130,7 @@ train = load_dataset('e2e_nlg_cleaned', split='train')
 validation = load_dataset('e2e_nlg_cleaned', split='validation')
 
 train.features
-
-
-# +
-# #!pwd
-#train=pd.read_csv("./data/e2e-dataset/trainset.csv")
-#train.head()
-#validation=pd.read_csv("./data/e2e-dataset/devset.csv")
 # -
-
-def randomize_mrs(record):
-    mr=record["meaning_representation"]
-    mr_list = mr.split(",")
-    random.shuffle(mr_list)
-    umr = ""
-    #print(mr_list)
-    for word in mr_list:
-        umr = umr + ", " + word
-        #print("\"",umr[1:],"\"",",","\"",row[1],"\"")
-    record["meaning_representation"] = umr[2:]
-    return record
-
-
-randomize_mrs(train[0])
-
-
-
-
-train=train.map(lambda x: randomize_mrs(x))
-
-
-validation=validation.map(lambda x: randomize_mrs(x))
-
-
-
-
-
-next(iter(train))
-
-
 
 data = next(iter(train))
 print("Example data from the dataset: \n", data)
@@ -194,47 +155,14 @@ print("Total Steps: ", steps)
 print("Total Validation Steps: ", valid_steps)
 print("Batch Size: ", batch_size)
 print("Total Epochs: ", epochs)
-
-
 # -
 
 # ## Data Pipeline
 
 # ### Process Train/Validation
 
-def encode(example, tokenizer,  encoder_max_len=60, decoder_max_len=60):
-    """
-    Encode function that uses the T5 Tokenizer on each example
-    """
-       
-    mr = example['meaning_representation']
-    ref = example['human_reference']
-  
-    mr_base = f"data_to_text: {str(mr)}"
-    ref_base = f"{str(ref)}"
-
-    encoder_inputs = tokenizer(mr_base, truncation=True, 
-                               return_tensors='tf', max_length=encoder_max_len,
-                              pad_to_max_length=True)
-
-    decoder_inputs = tokenizer(ref_base, truncation=True, 
-                               return_tensors='tf', max_length=decoder_max_len,
-                              pad_to_max_length=True)
-    
-    input_ids = encoder_inputs['input_ids'][0]
-    input_attention = encoder_inputs['attention_mask'][0]
-    target_ids = decoder_inputs['input_ids'][0]
-    target_attention = decoder_inputs['attention_mask'][0]
-    
-    outputs = {'input_ids':input_ids, 'attention_mask': input_attention, 
-               'labels':target_ids, 'decoder_attention_mask':target_attention}
-    return outputs
-
-
 train_ds = train.map(lambda x: encode(x, tokenizer))
 valid_ds = validation.map(lambda x: encode(x, tokenizer))
-
-type(train_ds)
 
 ex = next(iter(train_ds))
 print("Example data from the mapped dataset: \n", ex)
@@ -284,7 +212,8 @@ callbacks = [tensorboard_callback, model_checkpoint_callback]
 metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
 # -
 
-learning_rate = CustomSchedule() # learning_rate = 0.001  # Instead set a static learning rate
+#learning_rate = CustomSchedule() # learning_rate = 0.001  # Instead set a static learning rate
+learning_rate = 0.01
 optimizer = tf.keras.optimizers.Adam(learning_rate)
 
 # ### Init Model
