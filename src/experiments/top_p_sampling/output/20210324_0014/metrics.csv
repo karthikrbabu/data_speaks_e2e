@@ -1,0 +1,2 @@
+version,BLEU,NIST,METEOR,ROUGE_L,CIDEr,params,File
+v20210324_0014,0.2964,4.9112,0.3458,0.4918,1.6157,"{'max_length': 45, 'min_length': 10, 'early_stopping': True, 'do_sample': True, 'top_p': 0.25, 'top_k': 0, 'no_repeat_ngram_size': 2}",/home/ubuntu/karthik/data_speaks_e2e/src/experiments/top_p_sampling/output/20210324_0014/validation_ref_model.txt

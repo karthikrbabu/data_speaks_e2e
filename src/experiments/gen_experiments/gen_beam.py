@@ -161,8 +161,8 @@ print("Total Epochs: ", epochs)
 
 # ### Process Train/Validation
 
-train_ds = train.map(lambda x: encode(x, tokenizer, encoder_max_len, decoder_max_len))
-valid_ds = validation.map(lambda x: encode(x, tokenizer, encoder_max_len, decoder_max_len))
+train_ds = train.map(lambda x: encode(x, tokenizer, False, encoder_max_len, decoder_max_len))
+valid_ds = validation.map(lambda x: encode(x, tokenizer, False, encoder_max_len, decoder_max_len))
 
 ex = next(iter(train_ds))
 print("Example data from the mapped dataset: \n", ex)
@@ -255,7 +255,7 @@ model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps,
 
 # <hr>
 
-
+model_path
 
 # Load Model
 model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required. 
@@ -263,7 +263,7 @@ model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required.
 # ### Generate Results + Metrics
 
 # +
-gen_params = {'num_beams': 5,
+gen_params = {'num_beams': 7,
               'max_length': 45,
               'min_length': 10,
               'early_stopping': True,
@@ -342,6 +342,8 @@ model.save_pretrained(f'{model_path}')
 
 #model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required. 
 # -
+
+
 
 
 

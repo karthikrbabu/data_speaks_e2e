@@ -1,0 +1,2 @@
+version,BLEU,NIST,METEOR,ROUGE_L,CIDEr,params,File
+v20210320_0807,0.2736,4.4442,0.3605,0.4734,1.3763,"{'num_beams': 2, 'max_length': 70, 'min_length': 30, 'early_stopping': True, 'do_sample': False, 'no_repeat_ngram_size': 2}",/home/ubuntu/karthik/data_speaks_e2e/src/experiments/gen_experiments/output/20210320_0807/validation_ref_model.txt
