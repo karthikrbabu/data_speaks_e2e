@@ -24,7 +24,7 @@ pd.set_option('display.max_colwidth', None)
 
 # ### Indicate in the below cell, whether you want to look at all experiments ~ OR~ just a single experiment
 
-experiment_name = 'top_pk_sampling'
+experiment_name = 'all'
 
 # +
 if not experiment_name or experiment_name == 'all':
@@ -57,9 +57,8 @@ for folder in exp_folders:
             result = pd.concat([result, cur_exp])
 
 print(result.shape)
-result.head()
 # -
 
-result.sort_values(by='BLEU', ascending=False)
+result.sort_values(by='BLEU', ascending=False).head()
 
 

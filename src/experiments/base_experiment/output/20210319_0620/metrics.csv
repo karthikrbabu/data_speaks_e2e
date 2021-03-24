@@ -1,0 +1,2 @@
+version,BLEU,NIST,METEOR,ROUGE_L,CIDEr,params,File
+v20210319_0620,0.0418,0.5830,0.0783,0.2236,0.0512,{},/home/ubuntu/karthik/data_speaks_e2e/src/experiments/base_experiment/output/20210319_0620/validation_ref_model.txt
