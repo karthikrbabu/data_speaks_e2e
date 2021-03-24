@@ -22,29 +22,42 @@ import os
 pd.set_option('display.max_colwidth', None)
 # -
 
+# ### Indicate in the below cell, whether you want to look at all experiments ~ OR~ just a single experiment
 
+experiment_name = 'top_pk_sampling'
+
+# +
+if not experiment_name or experiment_name == 'all':
+    exp_folders = [x[0] for x in os.walk('./') if 'output/2021' in x[0]]
+else:
+    exp_folders = [x[0] for x in os.walk(f'./{experiment_name}') if 'output/2021' in x[0]]
+
+print("Total Experiments: ", len(exp_folders))
+print()
+print("Sample:")
+print(np.array(exp_folders[:5]))
+
+# -
 
 # ### Load Experiment Results
 
 # +
 result = None
-path = "output"
 exp_count = 1
-output_folders = os.listdir(f'{path}')
-for folder in output_folders:
-    files = os.listdir(f'{path}/{folder}')
+for folder in exp_folders:
+    files = os.listdir(f'{folder}')
     for file in files:
         if file.endswith(".csv"):
-            print(f'Exp #{exp_count}: {path}/{folder}/{file}')
+#             print(f'Exp #{exp_count}: {folder}/{file}')
             exp_count += 1
-            cur_exp = pd.read_csv(f'{path}/{folder}/{file}')
+            cur_exp = pd.read_csv(f'{folder}/{file}')
             if result is None:
                 cols = list(cur_exp.columns)
                 result = pd.DataFrame(columns=cols)
             result = pd.concat([result, cur_exp])
 
 print(result.shape)
-resupd.set_option('display.max_colwidth', None)lt.head()
+result.head()
 # -
 
 result.sort_values(by='BLEU', ascending=False)
