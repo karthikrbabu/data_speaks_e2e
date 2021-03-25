@@ -59,6 +59,8 @@ for folder in exp_folders:
 print(result.shape)
 # -
 
-result.sort_values(by='BLEU', ascending=False).head()
+result.sort_values(by='BLEU', ascending=False).head(20)
+
+
 
 
