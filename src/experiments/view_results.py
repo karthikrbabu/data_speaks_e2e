@@ -17,12 +17,23 @@
 import json
 import pandas as pd
 import numpy as np
+from tabulate import tabulate
 import os
 
 pd.set_option('display.max_colwidth', None)
+
+
 # -
 
 # ### Indicate in the below cell, whether you want to look at all experiments ~ OR~ just a single experiment
+
+def get_exp(path):
+    """ Get Experiment name"""
+    path_list = path.split('/')
+    exp_name = path_list[-4]
+    return exp_name
+
+
 
 experiment_name = 'all'
 
@@ -59,8 +70,62 @@ for folder in exp_folders:
 print(result.shape)
 # -
 
-result.sort_values(by='BLEU', ascending=False).head(20)
 
 
+# Get experiment names
+result['exp'] = result['File'].apply(lambda x: get_exp(x))
+result.head()
+
+# +
+# Get Each group in sorted order by BLEU score
+# exp_group = result.groupby('exp')
+# exp_sorted= exp_group.apply(lambda x: x.sort_values(["BLEU"]))
+# exp_sorted=exp_sorted.reset_index(drop=True)
+# exp_sorted.head()
+
+result = result.groupby(["exp"]).apply(lambda x: x.sort_values(["BLEU"], ascending = False)).reset_index(drop=True)
+# -
+
+exp_names = result['exp'].unique()
+exp_names
+
+# +
+top3_track = {}
+
+result[result['exp'] == 'beam_temp_exp'][:3]
+# -
+
+for exp in exp_names:
+    print(exp)
+    top3rows = result[result['exp'] == exp][:3]
+    top3rows = top3rows.drop(["version", 'File', 'CIDEr','NIST','METEOR','ROUGE_L'], axis=1)
+    print(tabulate(top3rows, headers='keys', tablefmt='psql'))
+    
+    print()
+    print()
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+top20 = result.sort_values(by='BLEU', ascending=False)[:20]
+top20.head()
+
+print(top20.drop(["params", 'File'], axis=1)[:10].to_latex(index=False)) 
+
+top20.head(10)
 
 
