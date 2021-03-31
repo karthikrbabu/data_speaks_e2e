@@ -143,8 +143,8 @@ print("Example data from the dataset: \n", data)
 warmup_steps = 1e4
 epochs = 5
 batch_size = 30
-encoder_max_len = 60
-decoder_max_len = 60
+encoder_max_len = 30
+decoder_max_len = 30
 buffer_size = 1000
 ntrain = len(train)
 nvalid = len(validation)
@@ -214,6 +214,8 @@ callbacks = [tensorboard_callback, model_checkpoint_callback]
 metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
 # -
 
+metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
+
 learning_rate = CustomSchedule() # learning_rate = 0.001  # Instead set a static learning rate
 optimizer = tf.keras.optimizers.Adam(learning_rate)
 
@@ -237,14 +239,61 @@ model.summary()
 # %tensorboard --logdir f"{base_dir}/tf_data/experiments/t5/logs"
 
 epochs_done = 0
-model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps, callbacks=callbacks, 
+model.fit(tf_train_ds, epochs=2, steps_per_epoch=steps, callbacks=callbacks,
           validation_data=tf_valid_ds, validation_steps=valid_steps, initial_epoch=epochs_done)
+
+# +
+params_array = []
+
+
+param1 = {'num_beams': 7, 'max_length': 45, 'min_length': 10, 'early_stopping': True, 'do_sample': False, 'no_repeat_ngram_size': 2}
+
+param2 = {'num_beams': 7, 'max_length': 45, 'min_length': 10, 'early_stopping': True, 'do_sample': False, 'no_repeat_ngram_size': 2}
+
+
+param3 = {'max_length': 45, 'min_length': 10, 'early_stopping': True, 'do_sample': True, 'temperature': 0.1, 'top_k': 0, 'no_repeat_ngram_size': 2}
+
+param4 = {'max_length': 45, 'min_length': 10, 'early_stopping': True, 'do_sample': True, 'temperature': 0.1, 'top_k': 15, 'no_repeat_ngram_size': 2}
+
+param5 = {'max_length': 45, 'min_length': 10, 'early_stopping': True, 'do_sample': True, 'top_k': 2, 'no_repeat_ngram_size': 2}
+param6 = {'max_length': 45, 'min_length': 10, 'early_stopping': True, 'do_sample': True, 'top_p': 0.35, 'top_k': 0, 'no_repeat_ngram_size': 2}
+param7 = {'max_length': 45, 'min_length': 10, 'early_stopping': True, 'do_sample': True, 'top_p': 0.3, 'top_k': 20, 'no_repeat_ngram_size': 2}
+
+params_array.append(param1)
+params_array.append(param2)
+params_array.append(param3)
+params_array.append(param4)
+params_array.append(param5)
+params_array.append(param6)
+params_array.append(param7)
+# -
+
+
+#Write model outputs
+params_array=[{}]
+for param_set in params_array:
+
+    #Returns a list of all the model generated outputs
+    model_ouput = get_model_output(model, tokenizer, param_set, None, tf_valid_ds, None)
+
+    v_out = model_ouput['validation']['output']
+    ts_val=time.strftime("%Y%m%d_%H%M")
+    print(ts_val)
+    write_model_output(valid_ds, "validation", ts_val, v_out, write_path=exp_dir)
+    
+    # Let's Use E2E Evaluation Metrics
+    scores = compute_metrics(exp_dir, base_dir, ts_val, 'validation', param_set)
+
+    print(scores)
+    
+    save_metrics(exp_dir, ts_val, scores) 
 
 # <hr>
 
 # ### Generate Results + Metrics
 
 # +
+""" Base Config
 gen_params = {'num_beams': 1, 
               'max_length': 60,
               'min_length': 20, 
@@ -252,23 +301,35 @@ gen_params = {'num_beams': 1,
               'do_sample': False,
               'no_repeat_ngram_size': 2 
              }
+"""
+"""Updated Config"""
 
+"""
+gen_params = {'num_beams': 7,
+              'max_length': 45,
+              'min_length': 10,
+              'early_stopping': True,
+              'do_sample': False,
+              'no_repeat_ngram_size': 2}
 #Returns a list of all the model generated outputs
 model_ouput = get_model_output(model, tokenizer, {}, None, tf_valid_ds, None)
-# -
 #Write model outputs
 v_out = model_ouput['validation']['output']
 ts_val=time.strftime("%Y%m%d_%H%M")
 print(ts_val)
 write_model_output(valid_ds, "validation", ts_val, v_out, write_path=exp_dir)
-
-
+"""
+# -
+"""
 # Let's Use E2E Evaluation Metrics
 scores = compute_metrics(exp_dir, base_dir, ts_val, 'validation', gen_params)
 print(scores)
+"""
 
+"""
 print(scores)
 save_metrics(exp_dir, ts_val, scores)
+"""
 
 # #### If we like the scores and want to save the scores to our model track
 # (We should probably club this with when we save to S3)
@@ -276,9 +337,11 @@ save_metrics(exp_dir, ts_val, scores)
 # ### Save Model (only if its worth it)
 
 
+# +
 # Keep for AWS path
-model.save_pretrained(f'{model_path}')
+#model.save_pretrained(f'{model_path}')
 # save_model_to_s3(model,base_dir, ts_val)
+# -
 
 # ### Load Model
 
