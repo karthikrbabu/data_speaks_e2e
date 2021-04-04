@@ -139,10 +139,10 @@ print("Example data from the dataset: \n", data)
 
 # +
 warmup_steps = 1e4
-epochs = 5
-batch_size = 30
-encoder_max_len = 60
-decoder_max_len = 60
+epochs = 7
+batch_size = 40
+encoder_max_len = 80
+decoder_max_len = 80
 buffer_size = 1000
 ntrain = len(train)
 nvalid = len(validation)
@@ -161,8 +161,13 @@ print("Total Epochs: ", epochs)
 
 # ### Process Train/Validation
 
-train_ds = train.map(lambda x: encode(x, tokenizer))
-valid_ds = validation.map(lambda x: encode(x, tokenizer))
+# +
+#train_ds = train.map(lambda x: encode(x, tokenizer))
+#valid_ds = validation.map(lambda x: encode(x, tokenizer))
+
+train_ds = train.map(lambda x: encode(x, tokenizer, encoder_max_len=encoder_max_len, decoder_max_len=decoder_max_len))
+valid_ds = validation.map(lambda x: encode(x, tokenizer, encoder_max_len=encoder_max_len, decoder_max_len=decoder_max_len))
+# -
 
 ex = next(iter(train_ds))
 print("Example data from the mapped dataset: \n", ex)
@@ -212,7 +217,8 @@ callbacks = [tensorboard_callback, model_checkpoint_callback]
 metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
 # -
 
-learning_rate = CustomSchedule() # learning_rate = 0.001  # Instead set a static learning rate
+#learning_rate = CustomSchedule() # learning_rate = 0.001  # Instead set a static learning rate
+learning_rate = 0.0005
 optimizer = tf.keras.optimizers.Adam(learning_rate)
 
 # ### Init Model
@@ -235,7 +241,7 @@ model.summary()
 # %tensorboard --logdir f"{base_dir}/tf_data/experiments/t5/logs"
 
 epochs_done = 0
-model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps, callbacks=callbacks, 
+model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps,
           validation_data=tf_valid_ds, validation_steps=valid_steps, initial_epoch=epochs_done)
 
 # <hr>
@@ -243,16 +249,17 @@ model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps, callbacks=callbacks
 # ### Generate Results + Metrics
 
 # +
-gen_params = {'num_beams': 1, 
-              'max_length': 60,
+gen_params = {'num_beams': 7, 
+              'max_length': 220,
               'min_length': 20, 
-              'early_stopping': True,
+              'early_stopping': False,
               'do_sample': False,
               'no_repeat_ngram_size': 2 
              }
 
 #Returns a list of all the model generated outputs
-model_ouput = get_model_output(model, tokenizer, {}, None, tf_valid_ds, None)
+#model_ouput = get_model_output(model, tokenizer, {}, None, tf_valid_ds, None)
+model_ouput = get_model_output(model, tokenizer, gen_params, None, tf_valid_ds, None)
 # -
 #Write model outputs
 v_out = model_ouput['validation']['output']

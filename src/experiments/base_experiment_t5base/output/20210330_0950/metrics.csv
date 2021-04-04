@@ -1,0 +1,2 @@
+version,BLEU,NIST,METEOR,ROUGE_L,CIDEr,params,File
+v20210330_0950,0.0448,0.1948,0.0955,0.2806,0.0125,"{'num_beams': 7, 'max_length': 45, 'min_length': 10, 'early_stopping': True, 'do_sample': False, 'no_repeat_ngram_size': 2}",/home/ubuntu/praveen/data_speaks_e2e/src/experiments/base_experiment_t5base/output/20210330_0950/validation_ref_model.txt
