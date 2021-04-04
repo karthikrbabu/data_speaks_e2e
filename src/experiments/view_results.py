@@ -92,10 +92,6 @@ for exp in exp_names:
     print()
 
 
-
-
-
-
 top20 = result.sort_values(by='BLEU', ascending=False)[:20]
 top20.head()
 

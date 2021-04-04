@@ -1,0 +1,2 @@
+version,BLEU,NIST,METEOR,ROUGE_L,CIDEr,params,File
+v20210331_0543,0.0125,0.0345,0.0724,0.2009,0.0128,{},/home/ubuntu/praveen/data_speaks_e2e/src/experiments/base_experiment_t5base/output/20210331_0543/validation_ref_model.txt
