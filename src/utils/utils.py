@@ -13,8 +13,7 @@ import boto3
 s3 = boto3.resource('s3')
 
 
-# -
-
+# +
 def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None, tf_test_ds=None):
     """
     Once model is trained and saved. Use this function to evaluate the output on train, validation, and test 
@@ -27,8 +26,7 @@ def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None,
     **kwargs => Provided to model.generate function call
     
     """
-    
-    total_process_time_minutes = 0
+
     def gen_output(ds, ds_name, gen_params):
         """
         ds => PreFetchDataset  - of Batched Tensors
@@ -80,15 +78,19 @@ def get_model_output(model, tok, gen_params, tf_train_ds=None, tf_valid_ds=None,
         print("Took %.2f seconds" % ((end - start)))
         print("Took {0} minutes".format(tot_time_min))
         print()
+        
         return output
 
     
     train_output = gen_output(tf_train_ds, "Train", gen_params) if tf_train_ds else []
     validation_output = gen_output(tf_valid_ds, "Validation", gen_params) if tf_valid_ds else []
     test_output = gen_output(tf_test_ds, "Test", gen_params) if tf_test_ds else []
-              
-    
+        
     return {"train": {"output": train_output}, "validation": {"output": validation_output}, "test":{"output": test_output}, "gen_params": gen_params}
+
+
+
+# -
 
 
 

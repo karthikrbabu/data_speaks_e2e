@@ -52,7 +52,6 @@ from datasets import load_dataset, list_datasets
 
 # Tensorflow
 import tensorflow as tf
-import tensorflow_datasets as tfds
 
 
 # +
@@ -79,10 +78,23 @@ train.head()
 # ### Initializations
 
 # +
-tokenizer = AutoTokenizer.from_pretrained('t5-small')
+tokenizer = AutoTokenizer.from_pretrained('t5-small', additional_special_tokens=['data_to_text'])
 
 #Vocab Length
 print("Vocab Length: ", len(tokenizer))
+# -
+
+ex1 = train['mr'][0]
+ex1
+
+mr_base = f"data_to_text: {str(ex1)}"
+
+vals = tokenizer(mr_base, truncation=True, return_tensors='tf', pad_to_max_length=True)
+vals.keys()
+
+vals['input_ids'].numpy()[0]
+
+np.array(tokenizer.convert_ids_to_tokens(vals['input_ids'].numpy()[0]))
 
 
 # +

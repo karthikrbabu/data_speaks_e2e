@@ -1,0 +1,2 @@
+version,BLEU,NIST,METEOR,ROUGE_L,CIDEr,params,File
+v20210325_1907,0.2215,3.7953,0.2798,0.4221,0.8517,"{'max_length': 45, 'min_length': 10, 'early_stopping': True, 'num_beams': 7, 'temperature': 0.4, 'no_repeat_ngram_size': 2}",/home/ubuntu/karthik/data_speaks_e2e/src/experiments/beam_temp_exp/output/20210325_1907/validation_ref_model.txt

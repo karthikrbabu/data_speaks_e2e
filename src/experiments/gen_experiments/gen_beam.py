@@ -194,28 +194,28 @@ plt.ylabel("Learning rate")
 save_path
 
 # +
-# start_profile_batch = steps+10
-# stop_profile_batch = start_profile_batch + 100
-# profile_range = f"{start_profile_batch},{stop_profile_batch}"
+# # start_profile_batch = steps+10
+# # stop_profile_batch = start_profile_batch + 100
+# # profile_range = f"{start_profile_batch},{stop_profile_batch}"
 
-# log_path = log_dir + "/" + datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-# tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1,
-#                                                      update_freq=20,profile_batch=profile_range)
+# # log_path = log_dir + "/" + datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+# # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1,
+# #                                                      update_freq=20,profile_batch=profile_range)
 
-checkpoint_filepath = save_path + "/" + "T5-{epoch:04d}-{val_loss:.4f}.ckpt"
-
-
-model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-    filepath=checkpoint_filepath,
-    save_weights_only=False,
-    monitor='val_loss',
-    mode='min',
-    save_best_only=True)
-
-callbacks = [tensorboard_callback, model_checkpoint_callback] 
+# checkpoint_filepath = save_path + "/" + "T5-{epoch:04d}-{val_loss:.4f}.ckpt"
 
 
-metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
+# model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+#     filepath=checkpoint_filepath,
+#     save_weights_only=False,
+#     monitor='val_loss',
+#     mode='min',
+#     save_best_only=True)
+
+# callbacks = [tensorboard_callback, model_checkpoint_callback] 
+
+
+# metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
 # -
 
 metrics = [tf.keras.metrics.SparseTopKCategoricalAccuracy(name='accuracy') ]
@@ -255,6 +255,10 @@ model.fit(tf_train_ds, epochs=epochs, steps_per_epoch=steps,
 
 # <hr>
 
+# Keep for AWS path
+model.save_pretrained(f'{model_path}')
+# save_model_to_s3(model,base_dir, ts_val)
+
 model_path
 
 # Load Model
@@ -263,7 +267,7 @@ model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required.
 # ### Generate Results + Metrics
 
 # +
-gen_params = {'num_beams': 7,
+gen_params = {'num_beams': 10,
               'max_length': 45,
               'min_length': 10,
               'early_stopping': True,
@@ -315,7 +319,7 @@ write_model_output(valid_ds, "validation", ts_val, v_out, write_path=exp_dir)
 
 # +
 # Let's Use E2E Evaluation Metrics
-scores = compute_metrics(exp_dir, base_dir, ts_val, 'validation', gen_params)
+scores = compute_metrics(exp_dir, base_dir, ts_val, 'validation', v_out['gen_params'])
 
 print(scores)
 # -

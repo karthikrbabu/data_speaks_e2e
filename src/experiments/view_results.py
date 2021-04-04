@@ -34,7 +34,6 @@ def get_exp(path):
     return exp_name
 
 
-
 experiment_name = 'all'
 
 # +
@@ -69,52 +68,28 @@ for folder in exp_folders:
 
 print(result.shape)
 # -
-
+# ### Get experiment names
 
 
 # Get experiment names
 result['exp'] = result['File'].apply(lambda x: get_exp(x))
+result = result.drop(['File'], axis=1)
 result.head()
 
-# +
 # Get Each group in sorted order by BLEU score
-# exp_group = result.groupby('exp')
-# exp_sorted= exp_group.apply(lambda x: x.sort_values(["BLEU"]))
-# exp_sorted=exp_sorted.reset_index(drop=True)
-# exp_sorted.head()
-
 result = result.groupby(["exp"]).apply(lambda x: x.sort_values(["BLEU"], ascending = False)).reset_index(drop=True)
-# -
 
 exp_names = result['exp'].unique()
 exp_names
 
-# +
-top3_track = {}
-
-result[result['exp'] == 'beam_temp_exp'][:3]
-# -
-
 for exp in exp_names:
     print(exp)
     top3rows = result[result['exp'] == exp][:3]
-    top3rows = top3rows.drop(["version", 'File', 'CIDEr','NIST','METEOR','ROUGE_L'], axis=1)
+    top3rows = top3rows.drop(["version", 'CIDEr','NIST','METEOR','ROUGE_L'], axis=1)
     print(tabulate(top3rows, headers='keys', tablefmt='psql'))
     
     print()
     print()
-    
-
-
-
-
-
-
-
-
-
-
-
 
 
 

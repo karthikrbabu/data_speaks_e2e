@@ -39,14 +39,11 @@ import nltk
 #HuggingFace
 from transformers import (TFAutoModelWithLMHead, AutoTokenizer, 
                             TFTrainer, TFTrainingArguments, T5Tokenizer, TFT5ForConditionalGeneration,
-                            TFT5Model, TFT5EncoderModel, T5Config, pipeline)
+                            TFT5Model, T5Config, pipeline)
 
 # Tensorflow
 import tensorflow as tf
 # tf.enable_eager_execution()
-
-#PyTorch
-import torch
 
 # WandB – Import the wandb library
 import wandb
@@ -57,19 +54,15 @@ import wandb
 # ## EDA - Clean E2E Dataset
 
 # +
-train = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/train-fixed.no-ol.csv')
-dev = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/devel-fixed.no-ol.csv') 
-test = pd.read_csv('../data/e2e-cleaning-master/cleaned-data/test-fixed.csv') 
+train = pd.read_csv('../../data/e2e-cleaning-master/cleaned-data/train-fixed.no-ol.csv')
+dev = pd.read_csv('../../data/e2e-cleaning-master/cleaned-data/devel-fixed.no-ol.csv') 
+test = pd.read_csv('../../data/e2e-cleaning-master/cleaned-data/test-fixed.csv') 
 print("Train Size", train.shape)
 print("Dev Size", dev.shape)
 print("Test Size", test.shape)
 
 train.head()
 # -
-
-dev['mr'][:100]
-
-train['mr'][0]
 
 #Stopwords Set
 sr= set(stopwords.words('english'))
@@ -140,7 +133,7 @@ df_tag_counts['tag'] = df_tag_counts.index
 
 fig = px.bar(df_tag_counts, x='tag', y='count',
              hover_data=['tag', 'count'], color='tag',
-             labels={'count':'number of tags in training data'}, height=400)
+             labels={'count':'Tag Count', 'tag':'Tag Name'}, height=400)
 
 fig.update_layout(title_text="Training: Tag Count")
 fig.show()

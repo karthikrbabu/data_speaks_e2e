@@ -72,6 +72,12 @@ from datasets import load_dataset, list_datasets
 # Tensorflow
 import tensorflow as tf
 
+#Graphing
+import keras
+import pydot
+import graphviz
+
+
 #AWS
 import boto3
 s3 = boto3.resource('s3')
@@ -161,8 +167,8 @@ print("Total Epochs: ", epochs)
 
 # ### Process Train/Validation
 
-train_ds = train.map(lambda x: encode(x, tokenizer, encoder_max_len, decoder_max_len))
-valid_ds = validation.map(lambda x: encode(x, tokenizer, encoder_max_len, decoder_max_len))
+train_ds = train.map(lambda x: encode(x, tokenizer, False, encoder_max_len, decoder_max_len))
+valid_ds = validation.map(lambda x: encode(x, tokenizer, False, encoder_max_len, decoder_max_len))
 
 ex = next(iter(train_ds))
 print("Example data from the mapped dataset: \n", ex)
@@ -255,6 +261,10 @@ model_path = '/home/ubuntu/karthik/data_speaks_e2e/src/experiments/gen_experimen
 
 # Load Model
 model = T5Wrapper.from_pretrained(model_path) #to be uncommented when required. 
+
+model.summary()
+
+keras.utils.plot_model(model, show_shapes=True, dpi=90)
 
 # +
 params_array = []
