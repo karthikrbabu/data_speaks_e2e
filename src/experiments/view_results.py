@@ -96,8 +96,6 @@ result.sort_values(by='BLEU', ascending=False)
 top20 = result.sort_values(by='BLEU', ascending=False)[:20]
 top20.head()
 
-print(top20.drop(["params", 'File'], axis=1)[:10].to_latex(index=False)) 
-
-top20.head(10)
+print(top20.drop(["params"], axis=1)[:10].to_latex(index=False))
 
 
