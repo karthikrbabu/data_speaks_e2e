@@ -34,7 +34,7 @@ def get_exp(path):
     return exp_name
 
 
-experiment_name = 'all'
+experiment_name = 'final_experiments'
 
 # +
 if not experiment_name or experiment_name == 'all':
@@ -91,6 +91,7 @@ for exp in exp_names:
     print()
     print()
 
+result.sort_values(by='BLEU', ascending=False)
 
 top20 = result.sort_values(by='BLEU', ascending=False)[:20]
 top20.head()

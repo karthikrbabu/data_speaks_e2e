@@ -166,7 +166,7 @@ with open(path) as json_file:
 praveen = [172, 247, 157]
 karthik = [67, 82]
 
-id_set = set(praveen)
+id_set = set(karthik)
 model_variants = [model for model in models_data if model['id'] in id_set]
 print("Number of variants: ", len(model_variants))
 # -
@@ -174,8 +174,6 @@ print("Number of variants: ", len(model_variants))
 # ### Param Sets
 
 print("Number of param_sets: ", len(param_sets))
-
-param_sets[0]
 
 
 class TimeHistory(keras.callbacks.Callback):
@@ -201,7 +199,6 @@ def compute_generation(model, tokenizer):
     param_count = 1
     for param_set in param_sets:
         
-        
 #         ### IF SOMETHING BREAKS PICKUP WHERE WE LEFT OFF
 #         if param_count < PICK_THE_NUM:
 #             print(f'Skipping: Model#: {model_count} Param#: {param_count}')
@@ -211,9 +208,6 @@ def compute_generation(model, tokenizer):
         
         print(f"Generate {param_count}/{len(param_sets)}")
         print(str(param_set))
-        
-        
-        
 
         #Returns a list of all the model generated outputs
         model_ouput = get_model_output(model, tokenizer, param_set, None, tf_valid_ds, None)
@@ -231,6 +225,8 @@ def compute_generation(model, tokenizer):
         save_metrics(exp_dir, ts_val, scores)
         param_count +=1
         
+
+
 # -
 
 def compute_model(model_size, opt_m, opt, learning_rate, encoder_max_len, decoder_max_len, epoch_num, tokenizer):
