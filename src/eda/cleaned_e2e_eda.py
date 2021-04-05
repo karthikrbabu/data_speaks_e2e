@@ -14,6 +14,11 @@
 #     name: python3
 # ---
 
+# # Cleaned E2E Analysis
+#
+# Goal of this notebook is to do an initial analysis of the data we are dealing with, get a sense of the tags involved, the length of entries and gauge the overall spread.
+#
+
 # +
 #Utilities
 import pandas as pd

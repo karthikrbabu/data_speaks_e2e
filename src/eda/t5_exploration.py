@@ -16,7 +16,9 @@
 
 # # T5 Model Exploration
 #
-# Take a look at the initial spread of inputs once we tokenize our data.
+# Goal of this notebook is to use the T5 tokenizer to parse the training and validation data. Consider the spread of token lengths and understand what are initial numbers we can experiment with in terms of pre-processing our data as inputs for **T5**. 
+#
+# Length's are important because they directly affect model performance, generation, and compute time.
 
 # +
 #Utilities

@@ -13,6 +13,10 @@
 #     name: python3
 # ---
 
+# # Data Sentiment Analysis
+#
+# Goal of this notebook is to use the pre-built HuggingFace Distill-BERT sentiment analysis pipeline on our training and validation data. We did this to understand if there was any implicit bias in our data that would affect our model to generate text that would be predominantly positive or negative.
+
 # +
 #Utilities
 import pandas as pd
@@ -130,8 +134,6 @@ axes[1].legend(loc='upper right')
 
 plt.show()
 # -
-
-
 # ## Train Conclusions:
 #
 # Our given human references in the training data have this sentiment spread, bias towards positivie summaries.
