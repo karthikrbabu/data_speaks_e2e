@@ -109,9 +109,6 @@ def write_model_output(hf_ds, hf_ds_name, ts, model_out, write_path='.'):
     path = f'{write_path}/output/{ts}'
     if not os.path.exists(f'{path}'):
         os.makedirs(path)
-    else:
-        print("removing: path")
-        os.remove(path)
           
     ref_file_path = f'{path}/{hf_ds_name}_ref.txt'
     ref_model_file_path = f'{path}/{hf_ds_name}_ref_model.txt'

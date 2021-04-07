@@ -85,7 +85,7 @@ exp_names
 for exp in exp_names:
     print(exp)
     top3rows = result[result['exp'] == exp][:3]
-    top3rows = top3rows.drop(["version", 'CIDEr','NIST','METEOR','ROUGE_L'], axis=1)
+#     top3rows = top3rows.drop(['CIDEr','NIST','METEOR','ROUGE_L'], axis=1)
     print(tabulate(top3rows, headers='keys', tablefmt='psql'))
     
     print()
@@ -97,5 +97,7 @@ top20 = result.sort_values(by='BLEU', ascending=False)[:20]
 top20.head()
 
 print(top20.drop(["params"], axis=1)[:10].to_latex(index=False))
+
+result.sort_values(by='version', ascending=False)
 
 

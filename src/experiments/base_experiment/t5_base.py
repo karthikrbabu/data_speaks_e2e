@@ -121,7 +121,7 @@ print('model_path: ', model_path)
 
 # ### Init Tokenizer
 
-tokenizer = AutoTokenizer.from_pretrained('t5-small')
+tokenizer = AutoTokenizer.from_pretrained('t5-small', additional_special_tokens=['data_to_text:'])
 
 # ### Process Train/ Validation
 
@@ -169,7 +169,11 @@ train_ds = train.map(lambda x: encode(x, tokenizer, encoder_max_len=encoder_max_
 valid_ds = validation.map(lambda x: encode(x, tokenizer, encoder_max_len=encoder_max_len, decoder_max_len=decoder_max_len))
 # -
 
-ex = next(iter(train_ds))
+iterr = iter(train_ds)
+ex = next(iterr)
+print("Example data from the mapped dataset: \n", ex)
+
+ex = next(iterr)
 print("Example data from the mapped dataset: \n", ex)
 
 # ### Process Train/Validation =>  Tensors
