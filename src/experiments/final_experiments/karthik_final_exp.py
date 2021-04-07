@@ -271,6 +271,7 @@ def compute_model(model_size, opt_m, opt, learning_rate, encoder_max_len, decode
 
 
 
+
 # ## Kick it Off! 
 
 # +
@@ -345,6 +346,8 @@ for train_params in model_variants:
         traceback.print_exc()
 
 # -
+
+
 
 
 
