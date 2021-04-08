@@ -2,6 +2,7 @@
 # data_speaks_e2e
 
 This repository is made to support our research paper ```Data Speaks, E2E Data-to-Text with T5```
+**Authors: Shyamkarthik Rameshbabu, Praveen Kasireddy**
 
 ### Abstract:
 We present an easy-to-use HuggingFace model tasked for data-to-text generation by extending the T5 (Raffelet al, 2019) model architecture with a language modeling head. Model variants allow for trade offs between semantic fidelity, accuracy, and text diversity. We report the outcomes of our research with regards to model complexity, resources, and text-generation techniques. The goal here is to operate in a true end-to-end fashion with no reliance on intermediate planning steps. With minimal training data, we leverage the Cleaned E2E data set to achieve encouraging results across many automated metrics. We hope our research works as a foundation to easily extend our architecture to new data sets and domains.
