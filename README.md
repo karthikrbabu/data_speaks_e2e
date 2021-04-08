@@ -45,45 +45,45 @@ Contains notebook file to build the final model. In addition as well as the mode
 ```./src/metrics_script```
 Contains directory provided by shared challenge to compute automated-evaluation metrics.
 
-.
-├── data
-│   ├── data_sandbox
-│   ├── e2e-cleaning-master
-│   │   ├── cleaned-data
-│   │   ├── partially-cleaned-data
-│   │   └── system-outputs
-│   └── e2e-dataset
-└── src
-    ├── classes
-    ├── eda
-    ├── experiments
-    │   ├── base_experiment
-    │   ├── base_experiment_t5base
-    │   ├── base_experiment_t5large
-    │   ├── base_notags
-    │   ├── base_random_mrs
-    │   ├── batch_size_experiment
-    │   ├── beam_temp_exp
-    │   ├── final_experiments
-    │   ├── gen_experiments
-    │   ├── model_training_experiment
-    │   ├── no_of_epochs_experiment
-    │   ├── sampling_exp
-    │   ├── special_tags_exp
-    │   ├── t5_base_exp
-    │   ├── temp_k_sampling
-    │   ├── top_k_sampling
-    │   ├── top_p_sampling
-    │   └── top_pk_sampling
-    ├── final_model
-    │   └── output
-    ├── metrics_script
-    │   ├── example-inputs
-    │   ├── metrics
-    │   ├── mteval
-    │   ├── pycocoevalcap
-    │   └── pycocotools
-    └── utils
+    .
+    ├── data
+    │   ├── data_sandbox
+    │   ├── e2e-cleaning-master
+    │   │   ├── cleaned-data
+    │   │   ├── partially-cleaned-data
+    │   │   └── system-outputs
+    │   └── e2e-dataset
+    └── src
+        ├── classes
+        ├── eda
+        ├── experiments
+        │   ├── base_experiment
+        │   ├── base_experiment_t5base
+        │   ├── base_experiment_t5large
+        │   ├── base_notags
+        │   ├── base_random_mrs
+        │   ├── batch_size_experiment
+        │   ├── beam_temp_exp
+        │   ├── final_experiments
+        │   ├── gen_experiments
+        │   ├── model_training_experiment
+        │   ├── no_of_epochs_experiment
+        │   ├── sampling_exp
+        │   ├── special_tags_exp
+        │   ├── t5_base_exp
+        │   ├── temp_k_sampling
+        │   ├── top_k_sampling
+        │   ├── top_p_sampling
+        │   └── top_pk_sampling
+        ├── final_model
+        │   └── output
+        ├── metrics_script
+        │   ├── example-inputs
+        │   ├── metrics
+        │   ├── mteval
+        │   ├── pycocoevalcap
+        │   └── pycocotools
+        └── utils
 
 
 <!-- #endregion -->
