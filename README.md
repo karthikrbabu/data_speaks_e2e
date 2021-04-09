@@ -41,7 +41,11 @@ jupytext --to notebook notebook.py
 Contains all the source code used for various parts of projects. Including utilities, custom classes, EDA, and experiments
 
 ```./src/final_model```
-Contains notebook file to build the final model. In addition as well as the model `.h5` and `config.json` to load the model, alongside model outputs and metrics.
+Contains 
+* `final_model_flow.py`, notebook file to build the final model
+* `./model`, contains `.h5` and `config.json` to load the saved model
+* `./output`, contains model generated output and metrics.
+
 
 ```./src/metrics_script```
 Contains directory provided by shared challenge to compute automated-evaluation metrics.
