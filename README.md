@@ -34,10 +34,8 @@ jupytext --to notebook notebook.py
 
 ### Directory Structure
 
-#### Key Folders:
+#### Key Folders/Files:
 
-```./data```
-We have provided the original E2E and Cleaned E2E data accessible in our repo. For development we have used the HuggingFace provisioning of the data for each of use on demand.
 
 ```./src```
 Contains all the source code used for various parts of projects. Including utilities, custom classes, EDA, and experiments
@@ -47,6 +45,13 @@ Contains notebook file to build the final model. In addition as well as the mode
 
 ```./src/metrics_script```
 Contains directory provided by shared challenge to compute automated-evaluation metrics.
+
+```./src/experiments/view_results.ipynb```
+We have provided a notebook to quickly view results of the generation experiments. You may filter by an experiment type and each individual experiment, or view them all at once across experiment type.
+
+
+```./data```
+We have provided the original E2E and Cleaned E2E data accessible in our repo. For development we have used the HuggingFace provisioning of the data for each of use on demand.
 
     .
     ├── data
