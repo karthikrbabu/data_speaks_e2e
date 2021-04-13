@@ -3,12 +3,15 @@
 
 This repository is made to support our research paper ```Data Speaks, E2E Data-to-Text with T5```
 
-**Presentation Link**: [Data Speaks E2E](https://docs.google.com/presentation/d/1uTKj7aBFPeK6ticnvwz21gCirP2p7iuUchPJqWu9UME/edit?usp=sharing)
-
-**Research Paper**: [Data_Speaks, E2E Data to Text with T5, E2E](https://drive.google.com/file/d/1MaVmoKCU_EyB-xjZKvJGwRcSeeYEJgcW/view?usp=sharing)
-
-
 **Authors: Shyamkarthik Rameshbabu, Praveen Kasireddy**
+
+
+    **Presentation Link**: [Data Speaks E2E](https://docs.google.com/presentation/d/1uTKj7aBFPeK6ticnvwz21gCirP2p7iuUchPJqWu9UME/edit?usp=sharing)
+
+    **Research Paper**: [Data_Speaks, E2E Data to Text with T5, E2E](https://drive.google.com/file/d/1MaVmoKCU_EyB-xjZKvJGwRcSeeYEJgcW/view?usp=sharing)
+
+
+
 
 ### Abstract:
 This study presents an easy-to-use model tasked for data-to-text generation by extending the T5 [(Raffel et al, 2019)](https://arxiv.org/abs/1910.10683) model architecture with a language modeling head. Model variants allow for trade offs between semantic fidelity, accuracy, and text diversity. The report covers outcomes and analysis with regards to model complexity, resources, and text-generation techniques. The goal is to operate in a true end-to-end fashion with no reliance on intermediate planning steps. With minimal training data, we leverage the Cleaned E2E dataset [(Novikova et al, 2016)](https://arxiv.org/abs/1608.00339v1) to achieve encouraging results across many automated metrics. We hope our findings and design work as a foundation to easily extend this architecture to new datasets and domains.
