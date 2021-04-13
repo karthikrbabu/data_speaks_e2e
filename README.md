@@ -5,12 +5,13 @@ This repository is made to support our research paper ```Data Speaks, E2E Data-t
 
 **Authors: Shyamkarthik Rameshbabu, Praveen Kasireddy**
 
+<hr>
 
-    **Presentation Link**: [Data Speaks E2E](https://docs.google.com/presentation/d/1uTKj7aBFPeK6ticnvwz21gCirP2p7iuUchPJqWu9UME/edit?usp=sharing)
+Presentation Link**: [Data Speaks E2E](https://docs.google.com/presentation/d/1uTKj7aBFPeK6ticnvwz21gCirP2p7iuUchPJqWu9UME/edit?usp=sharing)
 
-    **Research Paper**: [Data_Speaks, E2E Data to Text with T5, E2E](https://drive.google.com/file/d/1MaVmoKCU_EyB-xjZKvJGwRcSeeYEJgcW/view?usp=sharing)
+Research Paper**: [Data_Speaks, E2E Data to Text with T5, E2E](https://drive.google.com/file/d/1MaVmoKCU_EyB-xjZKvJGwRcSeeYEJgcW/view?usp=sharing)
 
-
+<hr>
 
 
 ### Abstract:
